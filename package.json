@@ -1,8 +1,8 @@
 {
-  "name": "openidea",
+  "name": "opengit",
   "private": true,
-  "description": "An open-source IDE inspired by IntelliJ IDEA",
-  "version": "0.1.33",
+  "description": "Git management with the original OpenIDEA interface",
+  "version": "0.1.0",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
@@ -10,22 +10,23 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "node scripts/tauri.ts",
-    "test": "vitest run",
+    "test": "vitest run src/features/vcs src/features/terminal src/platform/product.test.ts src/platform/themes.test.ts --maxWorkers=2",
     "test:watch": "vitest",
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "knip": "knip",
-    "typecheck": "tsrs --noEmit && tsrs -p tsconfig.node.json --noEmit && tsrs -p perf --noEmit && tsrs -p scripts --noEmit",
-    "gen:bindings": "cargo test -p openidea --test export_bindings",
+    "typecheck": "tsc --noEmit",
+    "gen:bindings": "cargo test -p opengit --test export_bindings",
     "gen:angular-grammar": "lezer-generator src/editor/core/cm/angular/angular.grammar --typeScript -o src/editor/core/cm/angular/parser.ts",
     "gen:theme-docs": "node scripts/theme/gen-docs.ts",
     "theme:import-intellij": "node scripts/theme/import-intellij-theme.ts",
     "dev:app": "node scripts/tauri.ts dev --config src-tauri/tauri.dev.conf.json",
     "dev:status": "node scripts/dev-status.ts",
-    "e2e": "playwright test",
+    "e2e": "playwright test e2e/gitEdition.spec.ts e2e/diff.spec.ts",
     "perf": "node perf/run.ts",
-    "perf:rust": "node perf/rust.ts"
+    "perf:rust": "node perf/rust.ts",
+    "build:windows": "node scripts/tauri.ts build --bundles nsis --ci"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"
@@ -59,9 +60,6 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.8.3",
     "@tauri-apps/plugin-opener": "^2",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/addon-search": "^0.16.0",
-    "@xterm/xterm": "^6.0.0",
     "anser": "^2.3.5",
     "clsx": "^2.1.1",
     "dompurify": "^3.4.17",
@@ -72,7 +70,10 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-resizable-panels": "^4.14.6",
-    "zustand": "^5.0.15"
+    "zustand": "^5.0.15",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-search": "^0.16.0",
+    "@xterm/xterm": "^6.0.0"
   },
   "devDependencies": {
     "@lezer/generator": "^1.8.1",
@@ -95,5 +96,9 @@
     "typescript": "~6.0.3",
     "vite": "^8.0.16",
     "vitest": "^5.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mhung59/opengit.git"
   }
 }

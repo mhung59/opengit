@@ -114,13 +114,10 @@ impl crate::Host {
             }
             project.repos();
             if trusted {
-                if let Some(cmd) = self.environment.project_opened(&project.root, &project.sink) {
-                    self.environment.spawn_post_start(cmd, project.root.clone(), project.sink.clone());
-                }
-                project.lsp.set_execution_allowed(true);
+                project.lsp.set_execution_allowed(false);
             } else {
                 self.environment.project_closed();
-                project.agents.shutdown();
+
                 self.processes.kill_project(&project.root);
                 project.notebooks.restrict().await;
                 let windows: Vec<_> = self

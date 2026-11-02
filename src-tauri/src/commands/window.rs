@@ -271,7 +271,9 @@ pub struct BuildInfo {
 pub fn app_build_info(app: AppHandle) -> BuildInfo {
     BuildInfo {
         version: env!("CARGO_PKG_VERSION").into(),
-        build: option_env!("OPENIDEA_BUILD").unwrap_or("dev").into(),
+        build: option_env!("OPENIDEA_BUILD")
+            .unwrap_or(if cfg!(debug_assertions) { "dev" } else { env!("CARGO_PKG_VERSION") })
+            .into(),
         profile: if cfg!(debug_assertions) { "debug" } else { "release" }.into(),
         os: std::env::consts::OS.into(),
         arch: std::env::consts::ARCH.into(),

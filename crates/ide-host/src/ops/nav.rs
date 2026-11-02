@@ -33,7 +33,15 @@ pub fn index_status(host: &Host, window: &str) -> IdeResult<IndexStatus> {
 }
 
 pub fn find_files(host: &Host, window: &str, query: String, limit: u32) -> IdeResult<Vec<FileMatch>> {
-    Ok(host.project(window)?.index.find_files(&query, limit as usize))
+    let project = host.project(window)?;
+    let paths = std::sync::Mutex::new(Vec::new());
+    let excludes = project.search_excludes();
+    for root in std::iter::once(project.root.clone()).chain(project.content_roots()) {
+        ide_vfs::walk_files(&root, &excludes, |path| {
+            paths.lock().unwrap().push(path.to_path_buf());
+        });
+    }
+    Ok(ide_index::match_paths(&project.root, paths.into_inner().unwrap(), &query, limit.min(1000) as usize))
 }
 
 pub fn find_symbols(

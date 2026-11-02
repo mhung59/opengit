@@ -8,6 +8,8 @@ import { invoke as __TAURI_INVOKE, Channel } from "@tauri-apps/api/core";
 /** Commands */
 export const commands = {
 	appInfo: () => __TAURI_INVOKE<AppInfo>("app_info"),
+	/**  Checks edited proxy settings without enabling the HTTP client tool window. */
+	proxyCheckConnection: (proxy: ProxySettings, url: string) => typedError<string, IdeError>(__TAURI_INVOKE("proxy_check_connection", { proxy, url })),
 	recentProjects: () => __TAURI_INVOKE<RecentProject[]>("recent_projects"),
 	removeRecentProject: (path: string) => typedError<null, IdeError>(__TAURI_INVOKE("remove_recent_project", { path })),
 	openProject: (path: string) => typedError<ProjectInfo_Serialize, IdeError>(__TAURI_INVOKE("open_project", { path })),
@@ -79,60 +81,6 @@ export const commands = {
 	cancelTask: (id: TaskId) => __TAURI_INVOKE<boolean>("cancel_task", { id }),
 	/**  Routes frontend logs into the backend `tracing` pipeline. */
 	logFrontend: (level: LogLevel, message: string) => __TAURI_INVOKE<void>("log_frontend", { level, message }),
-	/**  Streams the project's agent events to this window; returns every task. */
-	agentSubscribe: (onEvent: Channel<AgentEvent>) => typedError<AgentTask[], IdeError>(__TAURI_INVOKE("agent_subscribe", { onEvent })),
-	agentProviders: () => typedError<AgentProvider[], IdeError>(__TAURI_INVOKE("agent_providers")),
-	/**
-	 *  Agents of the ACP Registry this machine can run, with what is installed; the list
-	 *  saved earlier when the registry is unreachable. Cancel with `cancel_request(request)`.
-	 */
-	agentRegistryList: (request: RequestId) => typedError<AgentRegistry, IdeError>(__TAURI_INVOKE("agent_registry_list", { request })),
-	/**
-	 *  Installs the registry's current version of agent `id` (also to update it), streaming
-	 *  progress through `on_event`. Cancel with `cancel_request(request)`.
-	 */
-	agentRegistryInstall: (id: string, request: RequestId, onEvent: Channel<InstallEvent>) => typedError<null, IdeError>(__TAURI_INVOKE("agent_registry_install", { id, request, onEvent })),
-	/**  Removes a registry agent: its agent file and installed files. */
-	agentRegistryRemove: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("agent_registry_remove", { id })),
-	/**
-	 *  Slash commands to complete for `provider` in `task`'s directory, or in the project
-	 *  before a task exists (skills and custom commands on disk included).
-	 */
-	agentCommands: (provider: string, task: string | null) => typedError<AgentCommand[], IdeError>(__TAURI_INVOKE("agent_commands", { provider, task })),
-	/**  Entries of `task`'s conversation, or of its subagent `subagent`'s. */
-	agentEntries: (task: string, subagent: string | null) => typedError<AgentEntry[], IdeError>(__TAURI_INVOKE("agent_entries", { task, subagent })),
-	agentCreate: (request: NewAgentTask) => typedError<AgentTask, IdeError>(__TAURI_INVOKE("agent_create", { request })),
-	/**  Sends a message; while the agent works it is queued, or with `now` it interrupts the turn. */
-	agentPrompt: (task: string, prompt: AgentPrompt, now: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("agent_prompt", { task, prompt, now })),
-	/**  Drops a queued message and returns it (to edit it). */
-	agentUnqueue: (task: string, queued: string) => typedError<AgentQueued, IdeError>(__TAURI_INVOKE("agent_unqueue", { task, queued })),
-	/**  Sends a queued message now, interrupting the current turn. */
-	agentSendQueuedNow: (task: string, queued: string) => typedError<null, IdeError>(__TAURI_INVOKE("agent_send_queued_now", { task, queued })),
-	/**  Changes a session setting (model, mode, thinking effort…). */
-	agentSetConfig: (task: string, option: string, value: string) => typedError<null, IdeError>(__TAURI_INVOKE("agent_set_config", { task, option, value })),
-	/**  Copies the task's conversation into a new task, up to its first `turns` turns (all when `None`). */
-	agentFork: (task: string, turns: number | null) => typedError<AgentTask, IdeError>(__TAURI_INVOKE("agent_fork", { task, turns })),
-	/**  Drops the task's turns after its first `turns`; returns the message of the first dropped one. */
-	agentRollback: (task: string, turns: number) => typedError<{
-	text: string,
-	files: IpcPath[],
-	images: AgentImage[],
-} | null, IdeError>(__TAURI_INVOKE("agent_rollback", { task, turns })),
-	/**
-	 *  What the agent reports about itself when it starts (no session: no MCP servers, hooks
-	 *  or sign-in run). Remembered until `refresh`.
-	 */
-	agentProbe: (provider: string, refresh: boolean) => typedError<AgentProbe, IdeError>(__TAURI_INVOKE("agent_probe", { provider, refresh })),
-	/**  Stops the task's current turn, or with `subagent` only that subagent's work. */
-	agentCancel: (task: string, subagent: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("agent_cancel", { task, subagent })),
-	/**  Answers a permission request; `option: null` cancels it. */
-	agentRespond: (task: string, permission: number, option: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("agent_respond", { task, permission, option })),
-	agentArchive: (task: string) => typedError<null, IdeError>(__TAURI_INVOKE("agent_archive", { task })),
-	agentUnarchive: (task: string) => typedError<null, IdeError>(__TAURI_INVOKE("agent_unarchive", { task })),
-	agentDelete: (task: string, removeWorktree: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("agent_delete", { task, removeWorktree })),
-	agentChanges: (task: string) => typedError<AgentChange[], IdeError>(__TAURI_INVOKE("agent_changes", { task })),
-	/**  Content of `path` when the task started (left side of its diff). */
-	agentBaseText: (task: string, path: IpcPath) => typedError<string | null, IdeError>(__TAURI_INVOKE("agent_base_text", { task, path })),
 	notebookOpen: (path: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_open", { path })),
 	notebookGet: (id: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_get", { id })),
 	notebookEdit: (id: string, version: number, edit: NotebookEdit) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_edit", { id, version, edit })),
@@ -840,39 +788,6 @@ export const commands = {
 	profilerPrepare: (config: RunConfig_Deserialize) => typedError<ProfilePrepared_Serialize, IdeError>(__TAURI_INVOKE("profiler_prepare", { config })),
 	/**  Reads the profile a profiled run left behind. */
 	profilerCollect: (spec: ProfileSpec) => typedError<Profile, IdeError>(__TAURI_INVOKE("profiler_collect", { spec })),
-	/**  Routes this window's plugin events to `on_event` (replaces an earlier subscription). */
-	pluginSubscribe: (onEvent: Channel<PluginEvent>) => __TAURI_INVOKE<void>("plugin_subscribe", { onEvent }),
-	/**
-	 *  Installed plugins plus the dev plugins of this window's project
-	 *  (`<project>/.openidea/plugins/*`, rescanned on every call).
-	 */
-	pluginList: () => typedError<PluginsSnapshot, IdeError>(__TAURI_INVOKE("plugin_list")),
-	pluginSetEnabled: (id: string, enabled: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("plugin_set_enabled", { id, enabled })),
-	/**  Installs the plugin package in `path` (a folder with `plugin.toml`). */
-	pluginInstallDir: (path: string) => typedError<PluginInfo, IdeError>(__TAURI_INVOKE("plugin_install_dir", { path })),
-	/**
-	 *  Plugin packages available locally for installation: `<resources>/plugins`
-	 *  when bundled, plus the repository's sample `plugins/` in debug builds.
-	 *  There is no network marketplace.
-	 */
-	pluginCatalog: () => typedError<CatalogPlugin[], IdeError>(__TAURI_INVOKE("plugin_catalog")),
-	pluginUninstall: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("plugin_uninstall", { id })),
-	/**  Re-reads a plugin from disk (after rebuilding a dev plugin). */
-	pluginReload: (id: string) => typedError<PluginInfo, IdeError>(__TAURI_INVOKE("plugin_reload", { id })),
-	/**  Runs a plugin command in the context of this window's project. */
-	pluginRunCommand: (pluginId: string, commandId: string, arg: string | null) => typedError<string | null, IdeError>(__TAURI_INVOKE("plugin_run_command", { pluginId, commandId, arg })),
-	/**  The UI reports the focused editor's file (`active-file` for plugins). */
-	pluginSetActiveFile: (path: string | null) => __TAURI_INVOKE<void>("plugin_set_active_file", { path }),
-	/**  Selects a plugin theme; both `None` restores the built-in theme. */
-	pluginSetTheme: (pluginId: string | null, themeId: string | null) => typedError<{
-	pluginId: string,
-	theme: ThemeDef,
-} | null, IdeError>(__TAURI_INVOKE("plugin_set_theme", { pluginId, themeId })),
-	/**
-	 *  The UI reports the selected plugin theme's resolved frame colour (`#rrggbb[aa]`),
-	 *  which new windows open in before their page loads.
-	 */
-	pluginSetThemeFrame: (color: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("plugin_set_theme_frame", { color })),
 	/**
 	 *  Snapshot of process memory and subsystem sizes, summed over all projects.
 	 *  Async: the process walk runs on the blocking pool, not the main thread.
@@ -940,37 +855,6 @@ export const commands = {
 	ghPrComment: (number: number, body: string) => typedError<null, IdeError>(__TAURI_INVOKE("gh_pr_comment", { number, body })),
 	/**  Fetches what is missing to diff a pull request locally; returns the revisions to compare. */
 	ghPrPrepareDiff: (request: RequestId, number: number, headOid: string, baseOid: string, baseRef: string, nameWithOwner: string, onOutput: Channel<string>) => typedError<PrDiffRevisions, IdeError>(__TAURI_INVOKE("gh_pr_prepare_diff", { request, number, headOid, baseOid, baseRef, nameWithOwner, onOutput })),
-	/**  The requests of an `.http` file (gutter run icons, Run All). */
-	httpRequests: (text: string) => __TAURI_INVOKE<HttpRequestBlock[]>("http_requests", { text }),
-	/**  Environment names from the `http-client(.private).env.json` files that apply to `path`. */
-	httpEnvironments: (path: string | null) => typedError<string[], IdeError>(__TAURI_INVOKE("http_environments", { path })),
-	/**
-	 *  Sends request `index` of `text` (the editor buffer of `path`) and records
-	 *  the exchange in the response history. Cancel with `cancel_request(request)`.
-	 */
-	httpExecute: (request: RequestId, path: string | null, text: string, index: number, env: string | null) => typedError<HttpExchange, IdeError>(__TAURI_INVOKE("http_execute", { request, path, text, index, env })),
-	httpHistory: () => typedError<HttpHistoryEntry[], IdeError>(__TAURI_INVOKE("http_history")),
-	httpHistoryGet: (id: string) => typedError<HttpExchange, IdeError>(__TAURI_INVOKE("http_history_get", { id })),
-	httpHistoryClear: () => typedError<null, IdeError>(__TAURI_INVOKE("http_history_clear")),
-	/**
-	 *  System Settings › HTTP Proxy › Check connection: GETs `url` through `proxy` as
-	 *  edited (not yet applied); the response status, or why there was none.
-	 */
-	proxyCheckConnection: (proxy: ProxySettings, url: string) => typedError<string, IdeError>(__TAURI_INVOKE("proxy_check_connection", { proxy, url })),
-	dbSources: () => typedError<DataSource[], IdeError>(__TAURI_INVOKE("db_sources")),
-	dbSaveSources: (sources: DataSource[]) => typedError<null, IdeError>(__TAURI_INVOKE("db_save_sources", { sources })),
-	/**
-	 *  Remembers the password of data source `id` for the session, and in the OS
-	 *  saved passwords when `save` (`None` forgets it).
-	 */
-	dbSetPassword: (id: string, password: string | null, save: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("db_set_password", { id, password, save })),
-	/**  Remembers the SSH password / key passphrase of a data source (see `db_set_password`). */
-	dbSetSshSecret: (id: string, secret: string | null, save: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("db_set_ssh_secret", { id, secret, save })),
-	/**
-	 *  Trusts the SSH host key that made the last connection of `id` fail with
-	 *  "Unknown SSH host key" (records it in `~/.ssh/known_hosts`).
-	 */
-	dbTrustSshHost: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("db_trust_ssh_host", { id })),
 	/**  Test Connection: connects with `config` as edited (not necessarily saved). */
 	sshTest: (config: SshConfiguration, secret: string | null) => typedError<string, IdeError>(__TAURI_INVOKE("ssh_test", { config, secret })),
 	/**  Remembers the password / passphrase of configuration `id` (`None` forgets it). */
@@ -1040,52 +924,6 @@ export const commands = {
 	 *  (and the project's `remoteEnv` on a remote host); running ones keep theirs.
 	 */
 	envReload: () => typedError<EnvReloaded, IdeError>(__TAURI_INVOKE("env_reload")),
-	/**  Test Connection: connects with unsaved settings and returns the server version. */
-	dbTest: (source: DataSource, password: string | null, sshSecret: string | null) => typedError<string, IdeError>(__TAURI_INVOKE("db_test", { source, password, sshSecret })),
-	dbConnected: () => typedError<string[], IdeError>(__TAURI_INVOKE("db_connected")),
-	/**  Connects (fails with `permissionDenied` when the password is missing or wrong). */
-	dbConnect: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("db_connect", { id })),
-	dbDisconnect: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("db_disconnect", { id })),
-	/**  Databases of the server of data source `id` (PostgreSQL); connect to one as `<id>:<database>`. */
-	dbDatabases: (id: string) => typedError<DbDatabases, IdeError>(__TAURI_INVOKE("db_databases", { id })),
-	dbSchemas: (id: string) => typedError<string[], IdeError>(__TAURI_INVOKE("db_schemas", { id })),
-	dbTables: (id: string, schema: string) => typedError<DbTableInfo[], IdeError>(__TAURI_INVOKE("db_tables", { id, schema })),
-	dbTableDetails: (id: string, schema: string, table: string) => typedError<DbTableDetails, IdeError>(__TAURI_INVOKE("db_table_details", { id, schema, table })),
-	/**  The DDL of table or view `table` (Go to DDL, Generate DDL). */
-	dbDdl: (id: string, schema: string, table: string) => typedError<string, IdeError>(__TAURI_INVOKE("db_ddl", { id, schema, table })),
-	/**  The routines and sequences of `schema` (the tree's `routines` / `sequences`). */
-	dbSchemaObjects: (id: string, schema: string) => typedError<DbSchemaObjects, IdeError>(__TAURI_INVOKE("db_schema_objects", { id, schema })),
-	/**  The definition of a routine, trigger or sequence (Go to DDL, Quick Documentation). */
-	dbObjectDdl: (id: string, schema: string, kind: DbObjectKind, name: string) => typedError<string, IdeError>(__TAURI_INVOKE("db_object_ddl", { id, schema, kind, name })),
-	/**  Explain Plan: the execution plan of `statement` on `id`, without running it. */
-	dbExplain: (request: RequestId, id: string, statement: string) => typedError<DbPlanNode[], IdeError>(__TAURI_INVOKE("db_explain", { request, id, statement })),
-	/**  The statements data source `id` ran, newest first (Browse Query History). */
-	dbHistory: (id: string) => typedError<DbHistoryEntry[], IdeError>(__TAURI_INVOKE("db_history", { id })),
-	/**  Removes statements from the query history of `id` (`None`: all of them). */
-	dbRemoveHistory: (id: string, texts: string[] | null) => typedError<null, IdeError>(__TAURI_INVOKE("db_remove_history", { id, texts })),
-	/**  Tables, columns and foreign keys for SQL completion. */
-	dbCompletion: (id: string) => typedError<DbCompletion, IdeError>(__TAURI_INVOKE("db_completion", { id })),
-	/**  Writes exported result data (CSV, JSON, SQL…) to `path`. */
-	dbExportFile: (path: string, text: string) => typedError<null, IdeError>(__TAURI_INVOKE("db_export_file", { path, text })),
-	/**
-	 *  Switches a data source between auto-commit and manual commit (leaving
-	 *  manual mode rolls back what was not committed).
-	 */
-	dbSetManualCommit: (id: string, manual: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("db_set_manual_commit", { id, manual })),
-	/**  Commits or rolls back the open transaction of a manual-commit data source. */
-	dbFinishTransaction: (id: string, commit: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("db_finish_transaction", { id, commit })),
-	/**  Statements a console runs: the selection's (`from < to`) or the one at the caret (`from`). */
-	dbStatements: (id: string, text: string, from: number, to: number) => typedError<SqlStatement[], IdeError>(__TAURI_INVOKE("db_statements", { id, text, from, to })),
-	/**
-	 *  Runs `statements` in order on data source `id`, stopping at the first
-	 *  error. Cancel with `cancel_request(request)`.
-	 */
-	dbExecute: (request: RequestId, id: string, statements: SqlStatement[], maxRows: number) => typedError<DbStatementOutcome[], IdeError>(__TAURI_INVOKE("db_execute", { request, id, statements, maxRows })),
-	dbTablePage: (request: RequestId, id: string, schema: string, table: string, filter: string | null, sort: DbSortKey[], offset: number, limit: number) => typedError<DbTablePage, IdeError>(__TAURI_INVOKE("db_table_page", { request, id, schema, table, filter, sort, offset, limit })),
-	/**  Submits the table editor's changes in one transaction; returns the rows changed. */
-	dbApplyEdits: (id: string, schema: string, table: string, edits: DbRowEdit[]) => typedError<number | null, IdeError>(__TAURI_INVOKE("db_apply_edits", { id, schema, table, edits })),
-	/**  The query console file of data source `id` (`<appData>/consoles/db/<id>/console.sql`), created on first use. */
-	dbConsolePath: (id: string) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("db_console_path", { id })),
 };
 
 /* Types */
@@ -1094,285 +932,6 @@ export type ActionsOnSaveSettings = {
 	optimizeImports?: boolean,
 	/**  Run code cleanup (`source.fixAll`). */
 	cleanup?: boolean,
-};
-
-export type ActiveTheme = {
-	pluginId: string,
-	theme: ThemeDef,
-};
-
-/**
- *  What a task's agent can do beyond a plain conversation, as it reported when its
- *  session started.
- */
-export type AgentCapabilities = {
-	/**  Images in messages. */
-	images?: boolean,
-	/**  The conversation can be copied into a new task (`session/fork`). */
-	fork?: boolean,
-	/**  Its latest turns can be dropped. */
-	rollback?: boolean,
-	/**  A message can join the running turn instead of waiting for it. */
-	steer?: boolean,
-};
-
-/**  A file the task changed, relative to [`AgentTask::base_commit`]. */
-export type AgentChange = {
-	path: IpcPath,
-	relPath: string,
-	kind: ChangeKind,
-	added: number,
-	removed: number,
-};
-
-export type AgentCommand = {
-	/**  Without the leading `/`. */
-	name: string,
-	description: string,
-	/**  What to type after the command, when it takes input. */
-	hint: string | null,
-};
-
-/**  A setting chosen for a new task, by [`AgentConfigOption::id`]. */
-export type AgentConfigChoice = {
-	id: string,
-	value: string,
-};
-
-/**  A session setting: an ACP select config option, or the older `modes` / `models`. */
-export type AgentConfigOption = {
-	id: string,
-	name: string,
-	description: string | null,
-	/**  ACP category: `model`, `mode`, `thought_level`, or agent-specific. */
-	category: string | null,
-	current: string | null,
-	values: AgentConfigValue[],
-	via: AgentConfigVia,
-};
-
-/**  One value of a select-type session setting. */
-export type AgentConfigValue = {
-	value: string,
-	name: string,
-	description: string | null,
-};
-
-/**  How a setting is changed. */
-export type AgentConfigVia = 
-/**  `session/set_config_option`. */
-"option" | 
-/**  `session/set_mode` (agents that report `modes` instead of a mode config option). */
-"mode" | 
-/**  `session/set_model` (agents that report `models` instead of a model config option). */
-"model";
-
-/**  One item of a task's conversation. */
-export type AgentEntry = { type: "user"; text: string; 
-/**  Names of the files and images sent with it. */
-attachments: string[]; 
-/**  The images sent with it, shown in the conversation. */
-images?: AgentImage[]; 
-/**  When it was sent (ms since the epoch); `None` in tasks saved before this was kept. */
-sentMs?: number | null; 
-/**  When the turn it started ended; `None` while it runs or when it was cut off. */
-doneMs?: number | null; 
-/**  Sent into a running turn rather than starting one. */
-steered?: boolean } | { type: "agent"; text: string } | { type: "thought"; text: string } | { type: "tool"; id: string; title: string; 
-/**  ACP tool kind: `read`, `edit`, `execute`, `search`, `fetch`, `think`… */
-kind: string; status: AgentToolStatus; locations: IpcPath[]; 
-/**  Text the tool reported (command output…), truncated. */
-output: string | null; diffs: AgentToolDiff[] } | { type: "plan"; items: AgentPlanItem[] } | 
-/**  A subagent the agent started: its own session, whose entries are listed separately. */
-{ type: "subagent"; 
-/**  The subagent's session id. */
-id: string; title: string | null; description: string | null; status: AgentSubagentStatus; error: string | null; 
-/**  What it was asked to do, last. */
-prompt: string | null; 
-/**  Its answer. */
-reply: string | null; 
-/**  Tool calls it made. */
-tools: number; 
-/**  Title of its latest tool call. */
-activity: string | null; startedMs: number | null; 
-/**  When it last stopped working; `None` while it works. */
-endedMs: number | null; 
-/**  Whether it can be stopped on its own. */
-cancellable: boolean } | 
-/**  A message between sessions in a subagent's conversation: its task (`incoming`) or its report. */
-{ type: "message"; incoming: boolean; text: string } | { type: "permission"; id: number; title: string; options: AgentPermissionOption[]; 
-/**  Name of the chosen option, or `None` while pending. Cancelled requests read "Cancelled". */
-chosen: string | null } | { type: "error"; message: string };
-
-/**  Streamed to the window that subscribed (`AgentManager::subscribe`). */
-export type AgentEvent = 
-/**  A task was created or its metadata changed. */
-{ type: "task"; task: AgentTask } | { type: "removed"; id: string } | 
-/**  The task's conversation was cut to its first `length` entries (turns rolled back). */
-{ type: "truncated"; task: string; length: number } | 
-/**  Entry `index` of `task` (of its subagent `subagent`) was added or replaced. */
-{ type: "entry"; task: string; subagent: string | null; index: number; entry: AgentEntry };
-
-export type AgentImage = {
-	mimeType: string,
-	/**  Base64, without a `data:` prefix. */
-	data: string,
-	name: string | null,
-};
-
-export type AgentPermissionOption = {
-	id: string,
-	name: string,
-	/**  `allow_once`, `allow_always`, `reject_once` or `reject_always`. */
-	kind: string,
-};
-
-export type AgentPlanItem = {
-	content: string,
-	/**  `pending`, `in_progress` or `completed`. */
-	status: string,
-};
-
-/**
- *  What an agent says about itself when it starts (`initialize` only: no session, so no
- *  MCP servers, hooks or sign-in run).
- */
-export type AgentProbe = {
-	provider: string,
-	/**  The agent's own name and version, when it reports them. */
-	name: string | null,
-	version: string | null,
-	/**  How it is driven: `ACP v1`, `ACP v2` or `native`. */
-	protocol: string,
-	capabilities: AgentCapabilities,
-	/**  Ways to sign in it offers. */
-	authMethods: string[],
-	/**  Why it could not be started. */
-	error: string | null,
-};
-
-/**  A message to the agent: text, plus files to look at and images. */
-export type AgentPrompt = {
-	text: string,
-	files: IpcPath[],
-	images: AgentImage[],
-};
-
-export type AgentProvider = {
-	id: string,
-	name: string,
-	/**  The command line that starts its ACP server. */
-	command: string,
-	/**  Whether the command was found (on `PATH`). */
-	installed: boolean,
-	/**  Settings (models, modes…) the agent offered last time it ran; empty before its first session. */
-	config: AgentConfigOption[],
-	/**  Slash commands it offered last time. */
-	commands: AgentCommand[],
-	source: AgentSource,
-};
-
-export type AgentQueued = {
-	id: string,
-	prompt: AgentPrompt,
-};
-
-export type AgentRegistry = {
-	agents: RegistryAgent[],
-	/**  Set when the registry could not be reached and the copy saved earlier is shown. */
-	warning: string | null,
-};
-
-/**  An API request the agent is about to retry. */
-export type AgentRetry = {
-	attempt: number,
-	maxRetries: number | null,
-	/**  When the next attempt starts (ms since the epoch). */
-	retryAtMs: number | null,
-	error: string | null,
-};
-
-/**  Where an agent comes from. */
-export type AgentSource = { kind: "builtin" } | 
-/**  Defined by the user in `<config>/agents/<id>.toml`. */
-{ kind: "custom" } | 
-/**  Installed from the ACP Registry. */
-{ kind: "registry"; version: string; 
-/**  A newer version the registry offers. */
-update: string | null };
-
-export type AgentStatus = 
-/**  Creating the worktree / starting the agent. */
-"starting" | "running" | 
-/**  Waiting for a permission answer. */
-"needsInput" | 
-/**  The turn ended; the result can be reviewed or the conversation continued. */
-"ready" | "failed" | 
-/**  The account's usage limit was reached; the conversation can go on once it resets. */
-"limited" | "archived";
-
-/**  What a subagent is doing, as its parent reports it. */
-export type AgentSubagentStatus = "running" | 
-/**  One of its requests (a permission) waits for an answer. */
-"needsInput" | "done" | "cancelled" | "failed";
-
-export type AgentTask = {
-	/**  Original project folder; absent in tasks saved before per-task roots. */
-	projectRoot?: IpcPath | null,
-	id: string,
-	title: string,
-	/**  [`AgentProvider::id`]. */
-	provider: string,
-	/**  Model the task runs on (its `model` setting), when known. */
-	model: string | null,
-	status: AgentStatus,
-	isolation: Isolation,
-	/**  Directory the agent works in (the worktree, or the project root). */
-	cwd: IpcPath,
-	/**  Branch of the task's worktree. */
-	branch: string | null,
-	/**  Branch (or revision) the worktree was created from. */
-	base: string | null,
-	/**  Commit the task's changes are compared against (worktree tasks; local ones use `HEAD`). */
-	baseCommit: string | null,
-	/**  Why the task failed, when it did. */
-	error: string | null,
-	createdMs: number | null,
-	updatedMs: number | null,
-	/**
-	 *  The session's settings (model, mode, thinking effort…) as last reported, with the
-	 *  user's choices applied.
-	 */
-	config: AgentConfigOption[],
-	/**  Slash commands the agent offers. */
-	commands: AgentCommand[],
-	/**  Context window use, when the agent reports it. */
-	usage: AgentUsage | null,
-	/**  Messages waiting for the current turn to end, oldest first. */
-	queue: AgentQueued[],
-	capabilities?: AgentCapabilities,
-	/**  When a [`AgentStatus::Limited`] task's limit resets (ms since the epoch), if the agent said. */
-	resetsMs?: number | null,
-	/**
-	 *  The agent is retrying a failed API request (connection lost, overloaded…); cleared
-	 *  by its next output or any status change.
-	 */
-	retry?: AgentRetry | null,
-};
-
-export type AgentToolDiff = {
-	path: IpcPath,
-	added: number,
-	removed: number,
-};
-
-export type AgentToolStatus = "pending" | "running" | "completed" | "failed";
-
-export type AgentUsage = {
-	/**  Tokens in the context window. */
-	used: number,
-	/**  Size of the context window. */
-	size: number,
 };
 
 export type AppInfo = {
@@ -1671,29 +1230,6 @@ export type CallHierarchy = {
 	incomplete: ReferencesIncomplete | null,
 };
 
-/**
- *  A plugin package available for installation from a local catalog
- *  directory (the samples shipped with the IDE). Not installed by listing it.
- */
-export type CatalogPlugin = {
-	id: string,
-	name: string,
-	version: string,
-	description: string,
-	authors: string[],
-	homepage: string | null,
-	changeNotes: string | null,
-	/**  Package directory; install with `install_from_dir(path)`. */
-	path: IpcPath,
-	hasCode: boolean,
-	permissions: Permission[],
-	commands: CommandDecl[],
-	languageCount: number,
-	themeCount: number,
-	/**  Why the package cannot be installed as is (e.g. its WASM is not built). */
-	problem: string | null,
-};
-
 export type ChangeKind = "added" | "modified" | "deleted" | "renamed" | "untracked" | "ignored" | "conflicted";
 
 /**
@@ -1878,12 +1414,6 @@ export type Command = {
 	title: string,
 	command: string,
 	arguments: string[],
-};
-
-export type CommandDecl = {
-	id: string,
-	title: string,
-	category?: string | null,
 };
 
 export type CommandForm = {
@@ -2120,39 +1650,6 @@ export type DataBreakpointInfo = {
 	accessTypes: string[],
 };
 
-export type DataSource = {
-	id?: string,
-	name?: string,
-	driver?: DbDriver,
-	host?: string,
-	port?: number | null,
-	database?: string,
-	user?: string,
-	/**  SQLite database file (absolute, or relative to the project root). */
-	file?: IpcPath | null,
-	ssl?: DbSslMode,
-	/**  Keep the password in the saved passwords. */
-	savePassword?: boolean,
-	/**  Refuse statements other than queries (enforced by the database session where possible). */
-	readOnly?: boolean,
-	/**  SSH tunnel settings (`None`: never configured; kept but unused when not `enabled`). */
-	ssh?: DbSsh | null,
-	/**  Wire-compatible product preset (`cockroachdb`, `tidb`…; empty: the driver itself). */
-	vendor?: string,
-	color?: DbColor | null,
-	comment?: string,
-	/**  Connect with [`DataSource::url`] instead of the host / port / database fields. */
-	urlOnly?: boolean,
-	url?: string,
-	/**  PEM files; `~/` is the home directory. */
-	sslCaFile?: string,
-	sslCertFile?: string,
-	sslKeyFile?: string,
-	options?: DbOptions,
-	introspection?: DbIntrospection,
-	properties?: DbProperty[],
-};
-
 /**  System Settings › Date Formats (Git log, Local History, blame). */
 export type DateFormatSettings = {
 	/**  Use `pattern` / `use24_hour` instead of the system locale's format. */
@@ -2163,252 +1660,6 @@ export type DateFormatSettings = {
 	/**  "Today", "Yesterday", "5 min ago". */
 	pretty?: boolean,
 };
-
-export type DbCellValue = {
-	column: string,
-	/**  `None` is SQL NULL. */
-	value: string | null,
-};
-
-/**  IDEA's data source colours (tree node and console tab tint), e.g. red for production. */
-export type DbColor = "red" | "orange" | "yellow" | "green" | "blue" | "violet";
-
-export type DbColumnInfo = {
-	name: string,
-	dataType: string,
-	nullable: boolean,
-	default: string | null,
-	primaryKey: boolean,
-};
-
-/**  The schema model SQL completion and resolution work from. */
-export type DbCompletion = {
-	/**  Schema unqualified names resolve to. */
-	defaultSchema: string,
-	tables: DbCompletionTable[],
-	foreignKeys: DbForeignKey[],
-};
-
-export type DbCompletionColumn = {
-	name: string,
-	dataType: string,
-	nullable: boolean,
-	primaryKey: boolean,
-	/**  Has a default (or is generated): optional in INSERT. */
-	hasDefault: boolean,
-};
-
-export type DbCompletionTable = {
-	schema: string,
-	name: string,
-	kind: DbTableKind,
-	columns: DbCompletionColumn[],
-};
-
-export type DbDatabases = {
-	/**  The database the data source connects to (its setting, or the server default). */
-	current: string,
-	names: string[],
-};
-
-export type DbDriver = "sqlite" | "postgres" | 
-/**  MySQL and MariaDB. */
-"mysql" | 
-/**  Microsoft SQL Server. */
-"sqlServer";
-
-/**  `schema.table (columns) REFERENCES ref_schema.ref_table (ref_columns)`. */
-export type DbForeignKey = {
-	schema: string,
-	table: string,
-	columns: string[],
-	refSchema: string,
-	refTable: string,
-	refColumns: string[],
-};
-
-export type DbHistoryEntry = {
-	text: string,
-	/**  Milliseconds since the Unix epoch. */
-	time: number | null,
-};
-
-export type DbIndexInfo = {
-	name: string,
-	unique: boolean,
-	columns: string[],
-};
-
-/**  Schemas tab: the databases / schemas the tree shows. Names may use `*` and `?`. */
-export type DbIntrospection = {
-	allDatabases?: boolean,
-	databases?: string[],
-	allSchemas?: boolean,
-	schemas?: string[],
-	/**  `pg_catalog`, `information_schema`, `mysql`…, and service databases (`rdsadmin`…). */
-	showSystem?: boolean,
-	/**  PostgreSQL template databases (`template0`, `template1`). */
-	showTemplates?: boolean,
-	/**
-	 *  Object filter: the tree lists only tables, views, routines and sequences matching
-	 *  one of these patterns (`*`, `?`; separated by commas or spaces). Empty: all.
-	 */
-	objectFilter?: string,
-};
-
-/**  Schema objects other than tables and columns (Go to DDL, Drop). */
-export type DbObjectKind = "function" | "procedure" | "trigger" | "sequence";
-
-/**  Options tab: session settings applied to every connection. */
-export type DbOptions = {
-	transaction?: DbTxMode,
-	/**  PostgreSQL `search_path` (unqualified names resolve there). */
-	defaultSchema?: string,
-	/**  Session time zone (`TimeZone` / `time_zone`); empty keeps the default. */
-	timeZone?: string,
-	/**  Statements run on every new connection. */
-	startupScript?: string,
-	/**  Run `SELECT 1` this often while connected. */
-	keepAliveSecs?: number | null,
-	/**  Disconnect after this long without statements (enforced by the UI, which sees the activity). */
-	autoDisconnectSecs?: number | null,
-	/**  PostgreSQL: show only the configured database, its schemas right under the data source. */
-	singleDatabase?: boolean,
-};
-
-/**  One operation of a plan; `parent` indexes the plan's node list (roots: `None`). */
-export type DbPlanNode = {
-	parent: number | null,
-	/**  `Full Scan`, `Index Scan`, `Hash Join`… */
-	operation: string,
-	/**  The object it works on and its key details (`table: o;`). */
-	params: string,
-	properties: DbPlanProperty[],
-};
-
-export type DbPlanProperty = {
-	name: string,
-	value: string,
-};
-
-/**
- *  Advanced tab: a driver property. PostgreSQL: run-time parameters (and
- *  `application_name`); MySQL: session variables (and `charset`, `collation`);
- *  SQLite: pragmas. See [`crate::conn`].
- */
-export type DbProperty = {
-	name?: string,
-	value?: string,
-};
-
-export type DbQueryResult = {
-	statement: string,
-	columns: DbResultColumn[],
-	/**  Cell text; `None` is SQL NULL. Binary values are `0x…` hex. */
-	rows: ((string | null)[])[],
-	/**  Rows changed by a DML statement (`None` for queries). */
-	affected: number | null,
-	/**  More rows exist beyond the limit. */
-	hasMore: boolean,
-	elapsedMs: number | null,
-	/**  Until the server's first answer; the rest of `elapsed_ms` is fetching. */
-	executionMs: number | null,
-};
-
-export type DbResultColumn = {
-	name: string,
-	typeName: string,
-};
-
-export type DbRoutineInfo = {
-	name: string,
-	/**  `Function` or `Procedure`. */
-	kind: DbObjectKind,
-	arguments: string,
-	/**  Result type of a function. */
-	returns: string | null,
-};
-
-/**
- *  A pending change of the table editor. `key` identifies the row: its primary
- *  key columns with their original values.
- */
-export type DbRowEdit = { kind: "update"; key: DbCellValue[]; values: DbCellValue[] } | { kind: "insert"; values: DbCellValue[] } | { kind: "delete"; key: DbCellValue[] };
-
-/**  A schema's routines and sequences (the tree's `routines` / `sequences` folders). */
-export type DbSchemaObjects = {
-	routines: DbRoutineInfo[],
-	sequences: DbSequenceInfo[],
-};
-
-export type DbSequenceInfo = {
-	name: string,
-	dataType: string,
-};
-
-export type DbSortKey = {
-	column: string,
-	descending: boolean,
-};
-
-/**  Connect through an SSH tunnel: the database host and port are reached from `host`. */
-export type DbSsh = {
-	enabled?: boolean,
-	/**  A Settings › SSH Configurations id to connect with; empty = the fields below. */
-	config?: string,
-	/**  Host name, or a `Host` alias of `~/.ssh/config` with [`DbSshAuth::OpenSsh`]. */
-	host?: string,
-	port?: number | null,
-	user?: string,
-	auth?: SshAuth,
-	/**  Private key for [`DbSshAuth::KeyPair`]; `~/` is the home directory. */
-	keyFile?: string,
-	/**  Keep the SSH password / key passphrase in the saved passwords. */
-	saveSecret?: boolean,
-};
-
-export type DbSslMode = "disable" | "prefer" | "require" | 
-/**  Require, and check the server certificate against the CA file. */
-"verifyCa" | 
-/**  [`DbSslMode::VerifyCa`], and check that the certificate names the host. */
-"verifyFull";
-
-export type DbStatementOutcome = {
-	statement: SqlStatement,
-	result: DbQueryResult | null,
-	error: string | null,
-};
-
-export type DbTableDetails = {
-	columns: DbColumnInfo[],
-	indexes: DbIndexInfo[],
-	foreignKeys: DbForeignKey[],
-	triggers: DbTriggerInfo[],
-};
-
-export type DbTableInfo = {
-	name: string,
-	kind: DbTableKind,
-};
-
-export type DbTableKind = "table" | "view" | "materializedView";
-
-export type DbTablePage = {
-	result: DbQueryResult,
-	details: DbTableDetails,
-	offset: number | null,
-};
-
-export type DbTriggerInfo = {
-	name: string,
-	/**  `before`, `after`, `instead of`. */
-	timing: string,
-	/**  `insert`, `update or delete`… */
-	events: string,
-};
-
-/**  Transaction control of the data source's consoles. */
-export type DbTxMode = "auto" | "manual";
 
 /**  What a session's adapter supports, for enabling actions. */
 export type DebugCapabilities = {
@@ -3513,60 +2764,6 @@ export type Hover = {
 	range: Range | null,
 };
 
-/**  One request with its outcome. */
-export type HttpExchange = {
-	entry: HttpHistoryEntry,
-	request: PreparedRequest,
-	response: HttpResponse | null,
-};
-
-export type HttpHistoryEntry = {
-	id: string,
-	/**  Unix epoch, ms. */
-	timeMs: number | null,
-	name: string | null,
-	method: string,
-	url: string,
-	/**  `None` when the request failed. */
-	status: number | null,
-	totalMs: number | null,
-	/**  The `.http` file the request came from. */
-	file: IpcPath | null,
-	error: string | null,
-};
-
-/**  One request of a file, as shown by the gutter and the Run All list. */
-export type HttpRequestBlock = {
-	/**  0-based index among the file's requests. */
-	index: number,
-	name: string | null,
-	method: string,
-	/**  URL as written (variables not substituted). */
-	url: string,
-	/**  0-based line of the request line. */
-	line: number,
-	/**  First and last line (0-based, inclusive) of the block, separator excluded. */
-	startLine: number,
-	endLine: number,
-};
-
-export type HttpResponse = {
-	status: number,
-	statusText: string,
-	version: string,
-	headers: ([string, string])[],
-	contentType: string | null,
-	/**  Body as text (lossy UTF-8); `None` for binary bodies. */
-	body: string | null,
-	/**  Size in bytes as received (after decompression). */
-	size: number | null,
-	truncated: boolean,
-	/**  Request start → response headers. */
-	ttfbMs: number | null,
-	/**  Request start → body fully read. */
-	totalMs: number | null,
-};
-
 export type HunkKind = "added" | "modified" | "deleted";
 
 /**  A hunk identified by its line ranges (0-based), see [`LineHunk`]. */
@@ -3835,12 +3032,6 @@ export type InvalidateCachesOptions = {
 
 /**  A path field of an IPC type. */
 export type IpcPath = string;
-
-export type Isolation = 
-/**  A new git worktree on its own branch. */
-"worktree" | 
-/**  The project's own checkout. */
-"local";
 
 export type IssueLink = {
 	/**  Regular expression matched in commit messages. */
@@ -4493,18 +3684,6 @@ export type MethodStat = {
 	total: number | null,
 };
 
-export type NewAgentTask = {
-	/**  Validated by the host; defaults to the window project root. */
-	projectRoot?: IpcPath | null,
-	prompt: AgentPrompt,
-	provider: string,
-	/**  Settings for the new session (model, mode…). */
-	config: AgentConfigChoice[],
-	isolation: Isolation,
-	/**  Branch to start the worktree from; the current branch when `None`. */
-	base: string | null,
-};
-
 /**  Result of `node_at`: the smallest named node covering a range, with its ancestors. */
 export type NodeAt = {
 	node: SyntaxNode,
@@ -4577,8 +3756,6 @@ export type NotificationGroupSettings = {
 	/**  Also list it in the Notifications tool window. */
 	log?: boolean,
 };
-
-export type NotificationLevel = "info" | "warning" | "error";
 
 /**  Notifications page: global switches and the per-group display type. */
 export type NotificationSettings = {
@@ -4663,73 +3840,6 @@ export type PatchSource =
 export type PathCompletion = {
 	name: string,
 	dir: boolean,
-};
-
-/**  Capabilities a plugin must declare to use the gated host functions. */
-export type Permission = 
-/**  `workspace-root`, `read-file` (inside the project root only). */
-"project-read" | 
-/**  `active-file`. */
-"editor-read" | 
-/**  `insert-text`, `replace-selection`. */
-"editor-write";
-
-/**  Backend → UI notifications (Tauri event `ide://plugin`). */
-export type PluginEvent = 
-/**  Plugins, their status or their commands changed: re-fetch `plugin_list`. */
-{ type: "commandsChanged" } | { type: "notification"; pluginId: string; level: NotificationLevel; title: string; body: string } | { type: "insertText"; pluginId: string; text: string } | { type: "replaceSelection"; pluginId: string; text: string } | { type: "themeChanged"; theme: ActiveTheme | null };
-
-export type PluginInfo = {
-	id: string,
-	name: string,
-	version: string,
-	description: string,
-	authors: string[],
-	homepage: string | null,
-	changeNotes: string | null,
-	source: PluginSource,
-	/**  Package directory. */
-	path: IpcPath,
-	enabled: boolean,
-	status: PluginStatus,
-	error: string | null,
-	hasCode: boolean,
-	permissions: Permission[],
-	/**  Commands contributed while enabled (manifest + registered at runtime). */
-	commands: CommandDecl[],
-	languages: PluginLanguage[],
-	themes: PluginTheme[],
-};
-
-export type PluginLanguage = {
-	id: string,
-	name: string,
-	extensions: string[],
-};
-
-export type PluginSource = 
-/**  Installed under `<app-data>/plugins/<id>/`. */
-"installed" | 
-/**  Loaded from `<project>/.openidea/plugins/<dir>/` while that project is open. */
-"dev";
-
-export type PluginStatus = 
-/**  Code loaded and activated. */
-"active" | 
-/**  No code; static contributions only. */
-"static" | "disabled" | 
-/**  Failed to load, or trapped and was disabled for this session (see `error`). */
-"failed";
-
-export type PluginTheme = {
-	id: string,
-	name: string,
-	kind: ThemeKind,
-};
-
-export type PluginsSnapshot = {
-	plugins: PluginInfo[],
-	activeTheme: ActiveTheme | null,
 };
 
 /**  A 0-based line / UTF-16 column position. */
@@ -4824,15 +3934,6 @@ export type PrTimelineItem = {
 	/**  `None` for comments; the review state for reviews. */
 	reviewState: string | null,
 	url: string | null,
-};
-
-/**  A request ready to send: variables substituted, includes read. */
-export type PreparedRequest = {
-	name: string | null,
-	method: string,
-	url: string,
-	headers: ([string, string])[],
-	body: string | null,
 };
 
 export type PrettierSettings = {
@@ -5119,41 +4220,6 @@ export type ReferencesIncomplete =
 "tooManyFiles" | 
 /**  Files that mention the name were too large or unreadable to check. */
 "filesSkipped";
-
-/**  A registry agent this machine can run (or has installed). */
-export type RegistryAgent = {
-	id: string,
-	name: string,
-	/**  The registry's current version. */
-	version: string,
-	description: string,
-	repository: string | null,
-	website: string | null,
-	authors: string[],
-	license: string | null,
-	/**
-	 *  How it installs here; `None` when it no longer can (an installed agent whose
-	 *  runtime went away).
-	 */
-	distribution: RegistryDistribution | null,
-	/**
-	 *  The release archive comes without a SHA-256, so the download cannot be checked.
-	 *  npm and uv packages are checked by those tools.
-	 */
-	noChecksum: boolean,
-	/**  The installed version. */
-	installed: string | null,
-	/**  Whether [`Self::version`] is newer than the installed one. */
-	update: boolean,
-};
-
-export type RegistryDistribution = 
-/**  A release archive for this OS and architecture. */
-"binary" | 
-/**  An npm package (needs Node.js). */
-"npx" | 
-/**  A Python package run by uv. */
-"uvx";
 
 export type Remote = {
 	name: string,
@@ -5832,13 +4898,6 @@ export type SpellingSettings = {
 	customDictionaries?: string[],
 };
 
-export type SqlStatement = {
-	/**  UTF-16 offsets of the statement text (whitespace trimmed, `;` excluded). */
-	from: number,
-	to: number,
-	text: string,
-};
-
 /**  How an SSH connection authenticates. */
 export type SshAuth = "password" | 
 /**  A private key file, optionally protected by a passphrase. */
@@ -6204,16 +5263,6 @@ export type TextEdit = {
 	range: Range,
 	new_text: string,
 };
-
-/**  `{"id", "name", "kind", "tokens": {"--bg-app": "#002b36", ...}}`. */
-export type ThemeDef = {
-	id: string,
-	name: string,
-	kind: ThemeKind,
-	tokens: { [key in string]: string },
-};
-
-export type ThemeKind = "dark" | "light";
 
 export type ThreadInfo = {
 	id: number,

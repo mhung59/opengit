@@ -174,7 +174,7 @@ impl Host {
             if let Some(bridge) = &project.kotlin_bridge {
                 bridge.stop();
             }
-            project.agents.shutdown();
+
             project.notebooks.stop_admission();
             // What the closing window started goes with it — the builds and searches it
             // asked for, its runs, its shells and its debug sessions — and the language
@@ -263,7 +263,6 @@ impl Host {
                 bridge.stop();
             }
             project.notebooks.stop_admission();
-            project.agents.shutdown();
         }
         // Kernel cleanup owns its interrupt/termination/reaping deadlines. An
         // outer LSP timeout must never abort it before owned children are reaped.

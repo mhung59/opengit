@@ -18,8 +18,15 @@ pub fn index_status(window: Window, state: State<'_, AppState>) -> IdeResult<Ind
 
 #[tauri::command]
 #[specta::specta]
-pub fn find_files(window: Window, state: State<'_, AppState>, query: String, limit: u32) -> IdeResult<Vec<FileMatch>> {
-    ide_host::ops::nav::find_files(&state.host, window.label(), query, limit)
+pub async fn find_files(
+    window: Window,
+    state: State<'_, AppState>,
+    query: String,
+    limit: u32,
+) -> IdeResult<Vec<FileMatch>> {
+    let host = state.host.clone();
+    let label = window.label().to_owned();
+    state.host.blocking(move || ide_host::ops::nav::find_files(&host, &label, query, limit)).await
 }
 
 #[tauri::command]

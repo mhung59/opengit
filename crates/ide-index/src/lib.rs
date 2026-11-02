@@ -117,7 +117,8 @@ impl ProjectIndex {
         let root = dunce::canonicalize(root).unwrap_or_else(|_| root.to_owned());
         let filter = filter::PathFilter::new(&root, &Vec::new().into(), &[]);
         let shared = Arc::new(Shared::new(filter, languages, syntax, sink, None));
-        Self::start(shared, root, false)
+        shared.indexing.store(false, Ordering::SeqCst);
+        Ok(Arc::new(Self { shared, worker: Mutex::new(None), root }))
     }
 
     fn start(shared: Arc<Shared>, root: PathBuf, scan: bool) -> IdeResult<Arc<Self>> {
@@ -135,6 +136,9 @@ impl ProjectIndex {
     /// globs, rescanning in the background (unchanged files are not re-read).
     /// Returns whether anything changed.
     pub fn set_scope(&self, content_roots: impl Into<IndexRoots>, excludes: Vec<String>) -> bool {
+        if self.worker.lock().is_none() {
+            return false;
+        }
         let content_roots = content_roots.into();
         if self.shared.filter().same_config(&content_roots, &excludes) {
             return false;
@@ -147,6 +151,9 @@ impl ProjectIndex {
     /// File types changed (the registry the index shares was updated): re-parses
     /// the files whose language under `before` differs from the current one.
     pub fn languages_changed(&self, before: Arc<LanguageRegistry>) {
+        if self.worker.lock().is_none() {
+            return;
+        }
         self.shared.enqueue(Job::Reparse(before));
     }
 
@@ -182,6 +189,9 @@ impl ProjectIndex {
     /// Incrementally re-indexes changed paths (called from the vfs watcher).
     /// Cheap: the work is queued for the indexing thread.
     pub fn update(&self, changed: &[PathBuf], removed: &[PathBuf]) {
+        if self.worker.lock().is_none() {
+            return;
+        }
         let changed: Vec<PathBuf> = changed.iter().filter_map(|p| self.normalize(p)).collect();
         let removed: Vec<PathBuf> = removed.iter().filter_map(|p| self.normalize(p)).collect();
         if !removed.is_empty() {
@@ -209,7 +219,9 @@ impl ProjectIndex {
             r.insert(0, path);
             r.truncate(MAX_RECENT);
         }
-        self.shared.enqueue(Job::SaveRecent);
+        if self.shared.store.is_some() {
+            self.shared.enqueue(Job::SaveRecent);
+        }
     }
 
     /// Drops a file from Recent Files (Delete in the ⌘E popup).
@@ -229,7 +241,9 @@ impl ProjectIndex {
                 return;
             }
         }
-        self.shared.enqueue(Job::SaveRecent);
+        if self.shared.store.is_some() {
+            self.shared.enqueue(Job::SaveRecent);
+        }
     }
 
     /// Recently opened files, most recent first; files deleted since (also while
@@ -249,6 +263,9 @@ impl ProjectIndex {
     /// Blocks until the initial scan and every queued update has been applied
     /// (tests, benchmarks, headless tools). Returns `false` on timeout.
     pub fn wait_idle(&self, timeout: Duration) -> bool {
+        if self.worker.lock().is_none() {
+            return true;
+        }
         self.shared.wait_idle(timeout)
     }
 
@@ -370,4 +387,15 @@ pub mod bench_support {
             matching::find_symbols(&self.data, &matching::Recents { paths: &self.recent }, query, filter, limit)
         }
     }
+}
+
+/// Fuzzy file navigation over paths supplied on demand, without reading file contents
+/// or creating a persistent symbol index.
+pub fn match_paths(root: &Path, paths: Vec<PathBuf>, query: &str, limit: usize) -> Vec<FileMatch> {
+    let mut data = data::IndexData::default();
+    for path in paths {
+        let rel = ide_core::ipc_path::to_ipc(path.strip_prefix(root).unwrap_or(&path));
+        data.insert(data::FileEntry::new(path, rel, data::FileRecord::default()));
+    }
+    matching::find_files(&data, &matching::Recents { paths: &[] }, query, limit)
 }

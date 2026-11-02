@@ -1,12 +1,12 @@
 [package]
-name = "openidea"
-description = "OpenIDEA desktop shell: an open-source IDE inspired by IntelliJ IDEA"
-version.workspace = true
+name = "opengit"
+description = "OpenGit desktop Git repository manager"
+version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "openidea_lib"
+name = "opengit_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -56,8 +56,6 @@ ide-analysis.workspace = true
 ide-coverage.workspace = true
 ide-profiler.workspace = true
 ide-http.workspace = true
-ide-agent.workspace = true
-ide-db.workspace = true
 ide-web.workspace = true
 ide-spell.workspace = true
 ide-ssh.workspace = true
@@ -66,7 +64,6 @@ ide-host.workspace = true
 ide-notebook.workspace = true
 ide-jsonrpc.workspace = true
 ide-tools = { path = "../crates/ide-tools" }
-ide-plugin = { path = "../crates/ide-plugin" }
 ide-docker = { path = "../crates/ide-docker" }
 ide-github = { path = "../crates/ide-github" }
 

@@ -2,28 +2,18 @@
 import { registerSettingsPage, type SettingsPageContribution } from "@/workbench/contributions";
 import { BEHAVIOR_PAGES } from "./behavior";
 import { BUILTIN_PAGES as CORE_PAGES } from "./builtins";
-import { DEPLOYMENT_PAGES } from "./deployment";
-import { EDITOR_PAGES, codeStyleLanguagePages } from "./editor";
-import { EXECUTION_PAGES } from "./execution";
-import { LANGUAGE_PAGES } from "./languages";
+import { EDITOR_PAGES } from "./editor";
 import { OptionsPage } from "./OptionsPage";
-import { RUN_TARGET_PAGES } from "./runTargets";
 import { specLabels, type PageSpec } from "./spec";
-import { SSH_PAGES } from "./ssh";
 import { TOOLS_PAGES } from "./tools";
 import { VCS_PAGES } from "./vcs";
 
 const BUILTIN_PAGES = [
-  ...BEHAVIOR_PAGES,
+  ...BEHAVIOR_PAGES.filter((page) => page.id !== "notifications"),
   ...CORE_PAGES,
   ...EDITOR_PAGES,
+  ...TOOLS_PAGES.filter((page) => page.id === "tools.terminal"),
   ...VCS_PAGES,
-  ...EXECUTION_PAGES,
-  ...DEPLOYMENT_PAGES,
-  ...RUN_TARGET_PAGES,
-  ...TOOLS_PAGES,
-  ...SSH_PAGES,
-  ...LANGUAGE_PAGES,
 ];
 const specs = new Map<string, PageSpec>(BUILTIN_PAGES.map((p) => [p.id, p]));
 
@@ -55,19 +45,5 @@ function toContribution(spec: PageSpec): SettingsPageContribution {
 
 export function registerBuiltinPages(): () => void {
   const disposers = BUILTIN_PAGES.map((spec) => registerSettingsPage(toContribution(spec)));
-  // Code Style › <Language> pages come from the backend's language list.
-  let live = true;
-  void codeStyleLanguagePages()
-    .then((pages) => {
-      if (!live) return;
-      for (const spec of pages) {
-        specs.set(spec.id, spec);
-        disposers.push(registerSettingsPage(toContribution(spec)));
-      }
-    })
-    .catch(() => {});
-  return () => {
-    live = false;
-    disposers.forEach((d) => d());
-  };
+  return () => disposers.forEach((dispose) => dispose());
 }

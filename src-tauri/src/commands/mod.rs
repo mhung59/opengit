@@ -6,7 +6,6 @@
 //! * streaming results use a `Channel<T>` argument; cancellable requests take a
 //!   UI-allocated `RequestId` and are cancelled via `cancel_request`.
 
-pub mod agent;
 pub mod analysis;
 pub mod app;
 pub mod build;
@@ -14,7 +13,6 @@ pub mod bytes;
 pub mod caches;
 pub mod clipboard;
 pub mod coverage;
-pub mod db;
 pub mod debug;
 pub mod dependencies;
 pub mod deploy;
@@ -25,13 +23,11 @@ pub mod fonts;
 pub mod fs;
 pub mod github;
 pub mod history;
-pub mod http;
 pub mod java;
 pub mod lsp;
 pub mod nav;
 pub mod notebook;
 pub mod perf;
-pub mod plugin;
 pub mod profiler;
 pub mod refactor;
 pub mod run;
@@ -62,6 +58,7 @@ pub(crate) fn sender<T: tauri::ipc::IpcResponse + Send + Sync + 'static>(
 pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
     tauri_specta::Builder::<tauri::Wry>::new().commands(collect_commands![
         app::app_info,
+        app::proxy_check_connection,
         app::recent_projects,
         app::remove_recent_project,
         app::open_project,
@@ -93,28 +90,6 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         app::cancel_request,
         app::cancel_task,
         app::log_frontend,
-        agent::agent_subscribe,
-        agent::agent_providers,
-        agent::agent_registry_list,
-        agent::agent_registry_install,
-        agent::agent_registry_remove,
-        agent::agent_commands,
-        agent::agent_entries,
-        agent::agent_create,
-        agent::agent_prompt,
-        agent::agent_unqueue,
-        agent::agent_send_queued_now,
-        agent::agent_set_config,
-        agent::agent_fork,
-        agent::agent_rollback,
-        agent::agent_probe,
-        agent::agent_cancel,
-        agent::agent_respond,
-        agent::agent_archive,
-        agent::agent_unarchive,
-        agent::agent_delete,
-        agent::agent_changes,
-        agent::agent_base_text,
         notebook::notebook_open,
         notebook::notebook_get,
         notebook::notebook_edit,
@@ -407,17 +382,6 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         web::web_open,
         profiler::profiler_prepare,
         profiler::profiler_collect,
-        plugin::plugin_subscribe,
-        plugin::plugin_list,
-        plugin::plugin_set_enabled,
-        plugin::plugin_install_dir,
-        plugin::plugin_catalog,
-        plugin::plugin_uninstall,
-        plugin::plugin_reload,
-        plugin::plugin_run_command,
-        plugin::plugin_set_active_file,
-        plugin::plugin_set_theme,
-        plugin::plugin_set_theme_frame,
         perf::app_metrics,
         perf::clear_caches,
         analysis::inspect_code,
@@ -449,18 +413,6 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         github::gh_pr_review,
         github::gh_pr_comment,
         github::gh_pr_prepare_diff,
-        http::http_requests,
-        http::http_environments,
-        http::http_execute,
-        http::http_history,
-        http::http_history_get,
-        http::http_history_clear,
-        http::proxy_check_connection,
-        db::db_sources,
-        db::db_save_sources,
-        db::db_set_password,
-        db::db_set_ssh_secret,
-        db::db_trust_ssh_host,
         ssh::ssh_test,
         ssh::ssh_set_secret,
         ssh::ssh_needs_secret,
@@ -493,28 +445,5 @@ pub fn builder() -> tauri_specta::Builder<tauri::Wry> {
         crate::remote_dev::remote_invoke,
         crate::remote_dev::remote_import_local,
         env::env_reload,
-        db::db_test,
-        db::db_connected,
-        db::db_connect,
-        db::db_disconnect,
-        db::db_databases,
-        db::db_schemas,
-        db::db_tables,
-        db::db_table_details,
-        db::db_ddl,
-        db::db_schema_objects,
-        db::db_object_ddl,
-        db::db_explain,
-        db::db_history,
-        db::db_remove_history,
-        db::db_completion,
-        db::db_export_file,
-        db::db_set_manual_commit,
-        db::db_finish_transaction,
-        db::db_statements,
-        db::db_execute,
-        db::db_table_page,
-        db::db_apply_edits,
-        db::db_console_path,
     ])
 }

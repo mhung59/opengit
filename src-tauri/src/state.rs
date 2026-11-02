@@ -16,8 +16,6 @@ pub struct AppState {
     pub host: Arc<Host>,
     pub startup: Startup,
     pub recent: RecentProjects,
-    /// WASM plugins (`ide-plugin`), shared by all windows.
-    pub plugins: Arc<ide_plugin::PluginHost>,
     /// The built-in web server (Open In › Browser, the editor's browser bar).
     pub web: ide_web::WebServer,
     /// Credential prompts of `ssh` / `git` child processes (`None` if it failed to start).
@@ -99,7 +97,6 @@ impl AppState {
             recent: RecentProjects::load(&config_dir),
             askpass: start_askpass(&app),
             sink: global_sink,
-            plugins: crate::commands::plugin::create_host(&app, &data_dir, &host)?,
             web: ide_web::WebServer::new(),
             remote_dev: crate::remote_dev::Connections::default(),
             host,

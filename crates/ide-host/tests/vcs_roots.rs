@@ -21,6 +21,7 @@ async fn patches_read_and_write_the_requested_repository() {
         git(root, &["init", "-b", "main"]);
         git(root, &["config", "user.name", "Test"]);
         git(root, &["config", "user.email", "test@example.com"]);
+        git(root, &["config", "core.autocrlf", "false"]);
         std::fs::write(root.join("same.txt"), format!("root {i}\n")).unwrap();
         git(root, &["add", "."]);
         git(root, &["commit", "-m", "initial"]);

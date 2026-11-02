@@ -172,7 +172,91 @@ pub const DYNAMIC_LAYOUTS: &str = "toolWindowLayouts";
 
 /// The menu bar for `os`. Labels are English defaults; the frontend replaces
 /// them with `menu.<id>` strings from the active locale catalog.
+/// The original native menu with non-Git product features removed.
 pub fn spec(os: Os) -> Vec<Entry> {
+    fn keep(entries: Vec<Entry>) -> Vec<Entry> {
+        let mut result = Vec::new();
+        for entry in entries {
+            match entry {
+                Entry::Submenu { id, label, children } => {
+                    if ["code", "refactor", "build", "run", "tools", "analyze"].contains(&id) {
+                        continue;
+                    }
+                    let children = keep(children);
+                    if !children.is_empty() {
+                        result.push(Entry::Submenu { id, label, children });
+                    }
+                }
+                Entry::Action { id, .. } if !product_action(id) => {}
+                Entry::Separator if result.is_empty() || matches!(result.last(), Some(Entry::Separator)) => {}
+                other => result.push(other),
+            }
+        }
+        while matches!(result.last(), Some(Entry::Separator)) {
+            result.pop();
+        }
+        result
+    }
+    keep(full_spec(os))
+}
+
+fn product_action(id: &str) -> bool {
+    if id.to_ascii_lowercase().contains("bookmark") || id == "view.notifications" {
+        return false;
+    }
+    ![
+        "agent.",
+        "agents.",
+        "analysis.",
+        "plugins.",
+        "database.",
+        "debug.",
+        "run.",
+        "build.",
+        "coverage.",
+        "profiler.",
+        "tools.",
+        "sdk.",
+        "dependencies.",
+        "deployment.",
+        "deploy.",
+        "remote.",
+        "http.",
+        "notebook.",
+        "web.",
+        "todo.",
+        "scratch.",
+        "libraries.",
+        "macros.",
+        "refactor.",
+    ]
+    .iter()
+    .any(|prefix| id.starts_with(prefix))
+        && ![
+            "file.newProject",
+            "file.invalidateCaches",
+            "file.powerSaveMode",
+            "file.togglePowerSave",
+            "app.checkForUpdates",
+            "navigate.gotoClass",
+            "navigate.gotoSymbol",
+            "navigate.fileStructure",
+            "navigate.typeHierarchy",
+            "navigate.callHierarchy",
+            "navigate.gotoDefinition",
+            "navigate.gotoImplementation",
+            "navigate.findUsages",
+            "editor.formatDocument",
+            "editor.formatSelection",
+            "editor.optimizeImports",
+            "editor.codeCleanup",
+            "ssh.startSession",
+            "ssh.configurations",
+        ]
+        .contains(&id)
+}
+
+fn full_spec(os: Os) -> Vec<Entry> {
     let mac = os == Os::Mac;
     let show_log = match os {
         Os::Mac => "Show Log in Finder",
@@ -184,9 +268,9 @@ pub fn spec(os: Os) -> Vec<Entry> {
     if mac {
         menus.push(sub(
             "app",
-            "OpenIDEA",
+            "OpenGit",
             vec![
-                act("app.about", "About OpenIDEA"),
+                act("app.about", "About OpenGit"),
                 act("app.checkForUpdates", "Check for Updates…"),
                 SEP,
                 act("file.settings", "Settings…"),
@@ -197,7 +281,7 @@ pub fn spec(os: Os) -> Vec<Entry> {
                 Entry::Native(Native::HideOthers),
                 Entry::Native(Native::ShowAll),
                 SEP,
-                accel("app.quit", "Quit OpenIDEA", "CmdOrCtrl+Q"),
+                accel("app.quit", "Quit OpenGit", "CmdOrCtrl+Q"),
             ],
         ));
     }
@@ -822,7 +906,7 @@ pub fn spec(os: Os) -> Vec<Entry> {
         act("help.showLog", show_log),
     ];
     if !mac {
-        help.extend([act("app.checkForUpdates", "Check for Updates…"), SEP, act("app.about", "About OpenIDEA")]);
+        help.extend([act("app.checkForUpdates", "Check for Updates…"), SEP, act("app.about", "About OpenGit")]);
     }
     menus.push(sub("help", "Help", help));
     menus

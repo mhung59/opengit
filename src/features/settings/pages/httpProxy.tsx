@@ -5,7 +5,8 @@
  */
 import { useId, useRef, useState } from "react";
 import clsx from "clsx";
-import { call, commands, isTauri } from "@/platform/ipc";
+import { isTauri } from "@/platform/ipc";
+import { invoke } from "@tauri-apps/api/core";
 import { tx, useTx } from "@/platform/i18n";
 import {
   PROXY_PORT_LIMITS,
@@ -205,7 +206,7 @@ function CheckConnection({ proxy }: { proxy: ProxySettingsValid }) {
   const check = async () => {
     setState({ status: "running" });
     try {
-      const status = await call(commands.proxyCheckConnection(proxy, url));
+      const status = await invoke<string>("proxy_check_connection", { proxy, url });
       setState({ status: "ok", text: t`Connection successful: ${status}` });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);

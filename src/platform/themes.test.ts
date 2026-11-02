@@ -4,12 +4,10 @@ import { BUILTIN_THEMES, isBuiltinTheme, themeKind } from "./themes";
 import { _setSchemeSource, effectiveScheme, schemeCss, schemeTokens, themeScheme } from "./colorScheme";
 import { applyThemeAttributes, resolveTheme, resolveThemeId } from "@/workbench/theme";
 import { validateSettings } from "@/features/settings/model/schema";
-import { applyPluginTheme } from "@/features/plugins/bridge";
 
 const css = readFileSync("src/styles/tokens.css", "utf8");
 _setSchemeSource(css);
 afterEach(() => {
-  applyPluginTheme(null);
   delete document.documentElement.dataset.colorTheme;
   delete document.documentElement.dataset.contrast;
 });

@@ -120,14 +120,7 @@ pub fn close_project(window: Window, state: State<'_, AppState>) {
 #[specta::specta]
 pub fn languages(state: State<'_, AppState>) -> Vec<LanguageInfo> {
     state.note_ipc();
-    let mut out: Vec<LanguageInfo> = state.languages.all().iter().map(LanguageInfo::from).collect();
-    // Plugin-contributed languages; built-in definitions win on id clashes.
-    for lang in state.plugins.languages() {
-        if !out.iter().any(|l| l.id == lang.id) {
-            out.push(LanguageInfo::from(&lang));
-        }
-    }
-    out
+    state.languages.all().iter().map(LanguageInfo::from).collect()
 }
 
 /// Effective settings for the window's project, or global settings without one.
@@ -288,9 +281,6 @@ pub async fn project_trust_set(
     folder: bool,
 ) -> IdeResult<()> {
     state.host.set_project_trust(&path, trusted, folder).await?;
-    if !trusted {
-        state.plugins.restrict_project(&dunce::canonicalize(&path).unwrap_or(path));
-    }
     Ok(())
 }
 
@@ -299,8 +289,12 @@ pub async fn project_trust_set(
 pub async fn project_trust_remove_location(state: State<'_, AppState>, path: PathBuf) -> IdeResult<()> {
     state.trust.remove_location(&path)?;
     state.host.refresh_project_trust().await?;
-    for project in state.host.projects().into_iter().filter(|p| !p.is_trusted()) {
-        state.plugins.restrict_project(&project.root);
-    }
     Ok(())
+}
+
+/// Checks edited proxy settings without enabling the HTTP client tool window.
+#[tauri::command]
+#[specta::specta]
+pub async fn proxy_check_connection(proxy: ide_core::settings::ProxySettings, url: String) -> IdeResult<String> {
+    ide_http::client::check_connection(&proxy, &url, &ide_core::CancellationToken::new()).await
 }

@@ -14,9 +14,7 @@ export type SectionId = "recent" | "recentActions" | "classes" | "files" | "symb
 
 export const TABS: ReadonlyArray<{ id: SeTab; label: string }> = [
   { id: "all", label: "All" },
-  { id: "classes", label: "Classes" },
   { id: "files", label: "Files" },
-  { id: "symbols", label: "Symbols" },
   { id: "actions", label: "Actions" },
   { id: "text", label: "Text" },
 ];
@@ -55,7 +53,7 @@ export function sectionsFor(tab: SeTab, emptyQuery: boolean): SectionId[] {
         return [];
     }
   }
-  return tab === "all" ? ["classes", "files", "symbols", "actions", "text"] : [tab];
+  return tab === "all" ? ["files", "actions", "text"] : tab === "classes" || tab === "symbols" ? [] : [tab];
 }
 
 export const ALL_TAB_LIMIT = 6;

@@ -1,6 +1,5 @@
 /** IntelliJ-style welcome window: brand + navigation on the left, the selected page on the right. */
 import { useEffect, useRef, useState } from "react";
-import clsx from "clsx";
 import { executeAction } from "@/platform/actions";
 import { useT, useTx, tx } from "@/platform/i18n";
 import { isTauri } from "@/platform/ipc";
@@ -8,8 +7,6 @@ import { useProject } from "@/platform/project";
 import { useRemoteProgress } from "@/platform/remote";
 import { stageLabel, useConnectDialog } from "@/features/remote-dev/model";
 import { Icon, IconButton, Menu, ProgressBar, Spinner, type MenuItem, T } from "@/ui";
-import { useSettingsPages } from "@/workbench/contributions";
-import { ErrorBoundary, Slot } from "@/workbench/ErrorBoundary";
 import logo from "../../../src-tauri/icons/128x128.png";
 import { CustomizePage } from "./CustomizePage";
 import { ProjectsPage } from "./ProjectsPage";
@@ -17,15 +14,13 @@ import { loadRecent, useRecent } from "./recent";
 import { useSession } from "./session";
 import styles from "./Welcome.module.css";
 
-export type WelcomePage = "projects" | "customize" | "plugins";
+export type WelcomePage = "projects" | "customize";
 
 /** Settings page id contributed by the plugins feature (embedded as Welcome › Plugins). */
-const PLUGINS_PAGE = "plugins";
 
 export const GEAR_MENU: MenuItem[] = [
   { kind: "action", action: "file.settings" },
   { kind: "action", action: "settings.keymap" },
-  { kind: "action", action: "plugins.installFromDisk" },
   { kind: "separator" },
   { kind: "action", action: "help.keymapReference" },
   { kind: "action", action: "help.showLog" },
@@ -148,10 +143,9 @@ export function WelcomeView() {
   const connectDialog = useConnectDialog((s) => s.open);
   const listOpening = useRecent((s) => s.opening);
   const opening = useProject((s) => s.opening);
-  const Plugins = useSettingsPages((s) => s.pages.get(PLUGINS_PAGE)?.component);
   const [page, setPage] = useState<WelcomePage>("projects");
   const dropping = useFolderDrop();
-  const shown = page === "plugins" && !Plugins ? "projects" : page;
+  const shown = page;
 
   useEffect(() => {
     void loadRecent();
@@ -167,7 +161,7 @@ export function WelcomeView() {
           <img className={styles.logo} src={logo} alt="" draggable={false} />
           <span className={styles.brandText}>
             <span className={styles.appName}>
-              <T>OpenIDEA</T>
+              <T>OpenGit</T>
             </span>
             {version && <span className={styles.version}>{version}</span>}
           </span>
@@ -176,7 +170,6 @@ export function WelcomeView() {
         <nav className={styles.nav} aria-label={tx("Welcome")}>
           <NavItem id="projects" label="Projects" page={shown} onSelect={setPage} />
           <NavItem id="customize" label="Customize" page={shown} onSelect={setPage} />
-          {Plugins && <NavItem id="plugins" label="Plugins" page={shown} onSelect={setPage} />}
         </nav>
         <div className={styles.sidebarSpacer} />
         <div className={styles.sidebarFooter}>
@@ -184,17 +177,12 @@ export function WelcomeView() {
         </div>
       </aside>
       <section
-        className={clsx(styles.content, shown === "plugins" && styles.contentPlugins)}
-        aria-label={shown === "projects" ? "Projects" : shown === "customize" ? "Customize" : "Plugins"}
+        className={styles.content}
+        aria-label={shown === "projects" ? "Projects" : "Customize"}
         aria-busy={opening || undefined}
       >
         {shown === "projects" && <ProjectsPage />}
         {shown === "customize" && <CustomizePage />}
-        {shown === "plugins" && Plugins && (
-          <ErrorBoundary name="welcome plugins page">
-            <Slot component={Plugins} />
-          </ErrorBoundary>
-        )}
         {dropping && (
           <div className={styles.dropOverlay} aria-hidden>
             <Icon name="folder-open" size={20} />

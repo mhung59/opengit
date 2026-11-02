@@ -9,19 +9,12 @@ import {
   provideToolWindowService,
   registerOverlay,
   registerStatusItem,
-  registerToolWindow,
 } from "./contributions";
 import { installBrowserGuards } from "./browserGuards";
 import { installDistractionFree } from "./distractionFree";
 import { installFileDrop } from "./fileDrop";
 import { installFocusTracking } from "./focus";
 import { clearNotifications, installNotifyEvents, notificationServiceImpl } from "./notificationStore";
-import {
-  NOTIFICATIONS_TOOL_WINDOW,
-  NotificationsHeaderActions,
-  NotificationsToolWindow,
-  useUnreadNotifications,
-} from "./Notifications";
 import { loadPlatformInfo } from "@/platform/platformInfo";
 import { registerShellActions } from "./shellActions";
 import { MainToolbarDialogHost } from "./MainToolbarDialog";
@@ -69,16 +62,6 @@ export function activateWorkbench(): () => void {
     registerOverlay({ id: "workbench.customizeToolbar", component: MainToolbarDialogHost }),
     registerStatusItem({ id: "workbench.tasks", align: "right", priority: 0, component: TaskStatus, lightEdit: true }),
     registerStatusItem({ id: "workbench.info", align: "left", priority: 5, component: StatusInfo, lightEdit: true }),
-    registerToolWindow({
-      id: NOTIFICATIONS_TOOL_WINDOW,
-      title: "Notifications",
-      icon: "bell",
-      anchor: "right",
-      order: 0,
-      component: NotificationsToolWindow,
-      headerActions: NotificationsHeaderActions,
-      useBadge: useUnreadNotifications,
-    }),
   ];
   return () => disposers.reverse().forEach((d) => d());
 }

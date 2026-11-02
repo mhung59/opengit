@@ -14,6 +14,7 @@ mod logging;
 #[cfg(target_os = "macos")]
 mod macos;
 mod menu;
+mod product;
 mod remote_dev;
 
 mod state;
@@ -56,12 +57,6 @@ pub fn run() {
     logging::init(&context.config().identifier);
 
     let refresh_shell_path = ide_host::shell_env::inherit_login_shell_path(&context.config().identifier);
-    // Managed LSP/DAP installs; must run before other threads start and before PATH is cached.
-    if let Some(data) = dirs::data_local_dir() {
-        ide_tools::extend_process_path(&data.join(&context.config().identifier));
-        ide_dap::adapter::set_tools_root(ide_tools::tools_dir(&data.join(&context.config().identifier)));
-        ide_sdk::java::add_jdk_root(&ide_tools::jdk::jdks_dir(&data.join(&context.config().identifier)));
-    }
     if let Some(refresh) = refresh_shell_path {
         refresh();
     }
@@ -88,9 +83,6 @@ pub fn run() {
             .map_label(|l| if windows::is_settings_window(l) { "settings" } else { l })
             .build(),
     );
-    let app = app
-        // Inert until an endpoint is configured (see `commands::window::app_check_update`).
-        .plugin(tauri_plugin_updater::Builder::new().build());
     // E2E automation bridge (Tauri MCP), debug builds only, localhost only.
     #[cfg(debug_assertions)]
     let app = app.plugin(tauri_plugin_mcp_bridge::Builder::new().bind_address("127.0.0.1").build());
@@ -105,6 +97,10 @@ pub fn run() {
         if request.message.command() == "user_font_data" { raw_invoke(request) } else { typed_invoke(request) }
     });
     app.invoke_handler(move |request| {
+        if !product::command_available(request.message.command()) {
+            request.resolver.reject(ide_core::IdeError::unavailable("This command is not part of the Git edition."));
+            return true;
+        }
         let webview = request.message.webview_ref();
         if let Some(state) = webview.try_state::<AppState>() {
             let label = AppState::owner_window(webview.label());

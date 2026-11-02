@@ -4,25 +4,9 @@
  * checks are the Settings › Version Control › Commit values, edited in place.
  */
 import type { ReactNode, RefObject } from "react";
-import { executeAction } from "@/platform/actions";
-import { call, commands, isTauri } from "@/platform/ipc";
-import { loadSettings } from "@/platform/project";
-import { useWorkflowSettings } from "@/platform/workflowSettings";
 import { Checkbox, Input, Popup, T } from "@/ui";
 import { useCommit } from "./commitStore";
 import styles from "./CommitView.module.css";
-
-type CommitCheck = "reformat" | "optimizeImports" | "cleanup" | "analyzeCode" | "checkTodo";
-
-async function setCheck(key: CommitCheck, value: boolean) {
-  if (!isTauri()) return;
-  try {
-    await call(commands.settingsSet("global", `vcs.commit.${key}`, JSON.stringify(value)));
-    await loadSettings();
-  } catch {
-    // keep the previous value
-  }
-}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -35,26 +19,11 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function Configure() {
-  return (
-    <button type="button" className={styles.optLink} onClick={() => void executeAction("file.settings", "vcs.commit")}>
-      <T>Configure</T>
-    </button>
-  );
-}
-
 /** The options themselves: in the popup, and inline beside the Commit dialog's message. */
 export function CommitOptionsBody() {
   const author = useCommit((s) => s.author);
   const signOff = useCommit((s) => s.signOff);
   const runHooks = useCommit((s) => s.runHooks);
-  const c = useWorkflowSettings((s) => s.vcs.commit);
-  const check = (key: CommitCheck, label: string, extra?: ReactNode) => (
-    <div className={styles.optRow}>
-      <Checkbox checked={c[key]} onChange={(v) => void setCheck(key, v)} label={label} />
-      {extra}
-    </div>
-  );
   return (
     <>
       <Section title="Git">
@@ -72,14 +41,7 @@ export function CommitOptionsBody() {
         <Checkbox checked={signOff} onChange={(v) => useCommit.setState({ signOff: v })} label="Sign-off commit" />
       </Section>
       <Section title="Commit Checks">
-        {check("reformat", "Reformat code")}
-        {check("optimizeImports", "Optimize imports")}
-        {check("cleanup", "Cleanup")}
         <Checkbox checked={runHooks} onChange={(v) => useCommit.setState({ runHooks: v })} label="Run Git hooks" />
-      </Section>
-      <Section title="Advanced Commit Checks">
-        {check("analyzeCode", "Analyze code")}
-        {check("checkTodo", "Check TODO", <Configure />)}
       </Section>
     </>
   );

@@ -16,6 +16,7 @@
  * English title stays searchable.
  */
 import { create } from "zustand";
+import { isProductAction } from "./product";
 import { evaluateWhen, getContext, type ContextKeys } from "./context";
 import { formatMessage, lookup, tx, useI18n } from "./i18n";
 
@@ -95,6 +96,7 @@ useI18n.subscribe((s, prev) => {
 
 /** Registers an action; returns a disposer. Re-registering an id replaces it. */
 export function registerAction(action: Action): () => void {
+  if (!isProductAction(action.id, action.category)) return () => {};
   sources.set(action.id, action);
   useActions.setState((s) => ({ actions: new Map(s.actions).set(action.id, localize(action)) }));
   return () => {

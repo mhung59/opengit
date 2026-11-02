@@ -29,6 +29,7 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
+        channel: process.env.OPENIDEA_E2E_CHANNEL,
         viewport: { width: 1400, height: 900 },
         // The specs use the macOS keymap (⌘-shortcuts) on every host OS.
         userAgent:

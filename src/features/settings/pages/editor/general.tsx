@@ -193,7 +193,7 @@ const GENERAL = editorPage({
   ],
 });
 
-const AUTO_IMPORT = editorPage({
+export const AUTO_IMPORT = editorPage({
   id: "editor.general.autoImport",
   title: "Auto Import",
   order: 0,
@@ -309,7 +309,7 @@ const BREADCRUMBS = editorPage({
   ],
 });
 
-const COMPLETION = editorPage({
+export const COMPLETION = editorPage({
   id: "editor.general.codeCompletion",
   title: "Code Completion",
   order: 3,
@@ -691,7 +691,7 @@ const SMART_KEYS = editorPage({
   ],
 });
 
-const INLINE_COMPLETION = editorPage({
+export const INLINE_COMPLETION = editorPage({
   id: "editor.general.inlineCompletion",
   title: "Inline Completion",
   order: 7,
@@ -746,7 +746,7 @@ const STICKY = editorPage({
   ],
 });
 
-const CODE_EDITING = editorPage({
+export const CODE_EDITING = editorPage({
   id: "editor.codeEditing",
   title: "Code Editing",
   order: 21,
@@ -806,7 +806,7 @@ const INLAY: Item[] = [
   },
 ];
 
-const INLAY_HINTS = editorPage({
+export const INLAY_HINTS = editorPage({
   id: "editor.inlayHints",
   title: "Inlay Hints",
   order: 33,
@@ -824,19 +824,4 @@ const INLAY_HINTS = editorPage({
   ],
 });
 
-export const GENERAL_PAGES = [
-  GENERAL,
-  AUTO_IMPORT,
-  APPEARANCE,
-  BREADCRUMBS,
-  COMPLETION,
-  FOLDING,
-  TABS,
-  GUTTER,
-  INLINE_COMPLETION,
-  RICH_COPY,
-  SMART_KEYS,
-  STICKY,
-  CODE_EDITING,
-  INLAY_HINTS,
-];
+export const GENERAL_PAGES = [GENERAL, APPEARANCE, BREADCRUMBS, FOLDING, TABS, GUTTER, RICH_COPY, SMART_KEYS, STICKY];

@@ -44,12 +44,6 @@ pub struct Project {
     pub cache_dir: PathBuf,
     /// Superseded launch snapshots retained until this project session ends.
     pub(crate) java_launch_snapshots: Mutex<crate::ops::java::cache::Session>,
-    /// Database tool window: data sources and their connections.
-    pub db: Arc<ide_db::DbManager>,
-    /// HTTP Client responses (IDEA's `.idea/httpRequests`), in the app data dir.
-    pub http_history: Arc<ide_http::History>,
-    /// Coding agent tasks (Agents tool window).
-    pub agents: Arc<ide_agent::AgentManager>,
     /// Native notebooks and owned kernels, scoped to this project incarnation.
     pub notebooks: Arc<crate::notebook::NotebookService>,
     pub(crate) kotlin_bridge: Option<Arc<crate::kotlin_bridge::KotlinBridge>>,
@@ -63,19 +57,10 @@ pub struct Project {
 }
 
 impl Host {
+    /// Opens a repository workspace with the original editor and Git services.
+    /// There is no project scan, language server, build discovery or code analysis.
     pub fn open_project(&self, window: &str, root: &Path) -> IdeResult<Arc<Project>> {
-        let started = std::time::Instant::now();
-        let mut lap = started;
-        let mut laps: Vec<(&str, u128)> = Vec::new();
-        let mut mark = |name: &'static str| {
-            laps.push((name, lap.elapsed().as_millis()));
-            lap = std::time::Instant::now();
-        };
         let root = dunce::canonicalize(root)?;
-        // Reject a damaged manifest before replacing the currently open project.
-        ide_workspace::workspace::Workspace::load(&root)?;
-        // The window reloaded (or asked again) for the project it already has: keep
-        // it, with its warm index, language servers and unsaved documents.
         if let Ok(current) = self.project(window)
             && current.root == root
             && !current.light
@@ -84,314 +69,51 @@ impl Host {
         }
         self.close_project(window);
         let sink: SharedSink = (self.sink_for)(window);
-        // Before anything the project starts: its children get the project's environment.
         let trusted = Arc::new(AtomicBool::new(self.trust.trusted(&root)?));
-        let post_start =
-            trusted.load(Ordering::Acquire).then(|| self.environment.project_opened(&root, &sink)).flatten();
-        let settings = SettingsStore::load(&self.config_dir, Some(&root));
-        let detected_roots = Arc::new(RwLock::new(ide_workspace::roots::detect(&root)));
-        let excludes = exclude_globs(&root, &settings.effective(), &detected_roots.read());
-        let extra_roots = content_roots(&settings.effective(), &root);
-        mark("roots");
-
-        // The project's own registry: File Types associations may be project-scoped.
+        let settings = Arc::new(SettingsStore::load(&self.config_dir, Some(&root)));
         let languages = Arc::new(self.languages.fork());
         languages.set_file_types(FileTypes::from_settings(&settings.effective().files, Some(&root)));
         let documents = documents(&sink, &languages, Some(&root));
         documents.set_file_defaults(ide_workspace::FileDefaults::from_settings(&settings.effective(), Some(&root)));
         let history = Arc::new(LocalHistory::open(&self.data_dir.join("history"), &root)?);
-        {
-            let history = history.clone();
-            let retention = history_retention(&settings.effective());
-            std::thread::Builder::new().name("openidea-history-prune".into()).spawn(move || {
-                if let Err(e) = history.apply_retention(retention) {
-                    tracing::warn!("local history: {e}");
-                }
-            })?;
-        }
-        let project_key = project_key(&root);
-        let index = ProjectIndex::open(
-            &root,
-            &self.local_data_dir.join("index").join(&project_key),
-            index_roots(&root, extra_roots.clone()),
-            excludes.clone(),
-            languages.clone(),
-            self.syntax(),
-            sink.clone(),
-        )?;
-        mark("index");
+        let index = ProjectIndex::unindexed(&root, languages.clone(), self.syntax(), sink.clone())?;
         let lsp = LspManager::new(root.clone(), languages.clone(), sink.clone());
-        lsp.set_execution_allowed(trusted.load(Ordering::Acquire));
-        lsp.set_content_roots(extra_roots.clone());
-        let settings = Arc::new(settings);
-        {
-            let settings = settings.clone();
-            let root = root.clone();
-            let data_dir = self.local_data_dir.clone();
-            let config_dir = self.config_dir.clone();
-            let sink = sink.clone();
-            let formatter_problem = std::sync::Mutex::new(None);
-            lsp.set_config_hook(Box::new(move |cfg, server_root| {
-                let member = ide_workspace::workspace::Workspace::load(&root).ok().flatten().and_then(|w| {
-                    w.projects.into_iter().filter(|p| server_root.starts_with(p)).max_by_key(|p| p.components().count())
-                });
-                let effective = member
-                    .as_ref()
-                    .map(|p| SettingsStore::load(&config_dir, Some(p)).effective())
-                    .unwrap_or_else(|| settings.effective());
-                let root = member.as_ref().unwrap_or(&root);
-                ide_sdk::apply::server_launch_overrides(cfg, &effective);
-                ide_sdk::apply::configure_server(cfg, root, server_root, &effective);
-                ide_sdk::java::cap_java_home(cfg, &ide_sdk::java::installed_jdks());
-                if cfg.name == "jdtls" {
-                    let problem = ide_lsp::jdtls::configure_formatter(
-                        cfg,
-                        effective.editor.code_style.languages.get("java"),
-                        root,
-                        &data_dir,
-                        effective.language_servers.get("jdtls"),
-                    )
-                    .err()
-                    .map(|e| e.to_string());
-                    let mut previous = formatter_problem.lock().unwrap();
-                    if problem != *previous {
-                        if let Some(body) = &problem {
-                            sink.emit(IdeEvent::Notify {
-                                level: ide_core::event::NotifyLevel::Warning,
-                                title: "Java formatter configuration unavailable".into(),
-                                body: Some(body.clone()),
-                            });
-                        }
-                        *previous = problem;
-                    }
-                    drop(previous);
-                    ide_lsp::jdtls::configure_source_paths(
-                        cfg,
-                        ide_workspace::roots::unmanaged_java_source_paths(
-                            root,
-                            server_root,
-                            &effective.project_structure,
-                        ),
-                    );
-                    let bundles: Vec<PathBuf> = ide_tools::managed_bundle(&data_dir, "java-debug")
-                        .into_iter()
-                        .chain(ide_sdk::java::usages_bundle(&data_dir))
-                        .chain(ide_sdk::java::kotlin_bridge_bundle(&data_dir))
-                        .collect();
-                    let min_java = ide_sdk::java::jdtls_min_java(cfg);
-                    let jdks = ide_sdk::java::jdtls_jdks(min_java, &data_dir);
-                    let lombok = ide_sdk::lombok::lombok_agent(
-                        server_root,
-                        ide_sdk::lombok::agent_in_args(cfg.args.iter().map(String::as_str)),
-                        ide_tools::managed_bundle(&data_dir, "lombok"),
-                        ide_sdk::apply::maven_local_repository(root, &effective),
-                    );
-                    if let Some(problem) = lombok.problem() {
-                        tracing::warn!("{problem}");
-                    }
-                    let server_jdk = ide_sdk::apply::jdtls_jdk(root, &effective).unwrap_or_else(|e| {
-                        cfg.launch_error = Some(e);
-                        None
-                    });
-                    ide_sdk::java::configure_jdtls(
-                        cfg,
-                        server_root,
-                        &data_dir,
-                        &jdks,
-                        ide_sdk::apply::project_jdk(root, &effective).as_ref(),
-                        server_jdk.as_ref(),
-                        min_java,
-                        &bundles,
-                        lombok.jar(),
-                    );
-                    ide_sdk::jdtls::launch_directly(cfg);
-                }
-                ide_sdk::apply::server_protocol_overrides(cfg, &effective);
-                let excluded_poms = unlinked_maven_poms(root, &effective);
-                ide_sdk::apply::configure_maven_import(cfg, root, &excluded_poms);
-            }));
-        }
-        {
-            let settings = settings.clone();
-            let root = root.clone();
-            let data_dir = self.local_data_dir.clone();
-            let sink = sink.clone();
-            lsp.set_prepare_hook(Box::new(move |cfg, _, cancel| {
-                let effective = settings.effective();
-                if cfg.name == "jdtls" {
-                    crate::java_runtime::prepare(
-                        cfg,
-                        &data_dir,
-                        !effective.languages.java.jdtls_jdk.trim().is_empty()
-                            || ide_sdk::apply::jdtls_jdk(&root, &effective).is_err(),
-                        &sink,
-                        cancel,
-                    );
-                }
-            }));
-        }
-        {
-            let settings = settings.clone();
-            lsp.set_servers_hook(Box::new(move |language, defined| {
-                ide_sdk::apply::language_servers(language.as_str(), defined, &settings.effective())
-            }));
-        }
-        {
-            let documents = documents.clone();
-            lsp.set_apply_edit_hook(Box::new(move |edit| apply_workspace_edit(&documents, &edit).is_ok()));
-        }
+        lsp.set_execution_allowed(false);
+        lsp.set_servers_hook(Box::new(|_, _| Vec::new()));
         let syntax = Arc::new(SyntaxCache::new(self.syntax()));
         documents.add_observer(Arc::new(SyntaxObserver(syntax.clone())));
-        documents.add_observer(Arc::new(LspObserver(lsp.clone())));
         documents.add_observer(Arc::new(HistoryObserver(history.clone())));
-        documents.add_observer(Arc::new(DeployObserver {
-            remote: self.remote.clone(),
-            settings: settings.clone(),
-            root: root.clone(),
-            sink: sink.clone(),
-            runtime: self.runtime.clone(),
-            trusted: trusted.clone(),
-        }));
-
-        let kotlin_bridge = crate::kotlin_bridge::KotlinBridge::new(
-            root.clone(),
-            self.local_data_dir.join("cache").join(&project_key).join("build"),
-            &self.local_data_dir,
-            settings.clone(),
-            lsp.clone(),
-            sink.clone(),
-            trusted.clone(),
-        );
-        documents.add_observer(kotlin_bridge.clone());
         let repos = Arc::new(RwLock::new(Repos::enclosing(&root)?));
         for repo in repos.read().all() {
             repo.set_execution_allowed(trusted.load(Ordering::Acquire));
         }
+        let excludes = exclude_globs(&root, &settings.effective(), &[]);
         let watcher = {
-            let kotlin_bridge = kotlin_bridge.clone();
-            let repos = repos.clone();
-            let settings = settings.clone();
-            let index = index.clone();
-            let documents = documents.clone();
-            let languages = languages.clone();
-            let sink = sink.clone();
-            let root = root.clone();
-            let detected_roots = detected_roots.clone();
-            let history = history.clone();
-            let remote = self.remote.clone();
-            let runtime = self.runtime.clone();
-            let lsp = lsp.clone();
-            let trusted = trusted.clone();
+            let (root, sink, documents, history, repos, settings) =
+                (root.clone(), sink.clone(), documents.clone(), history.clone(), repos.clone(), settings.clone());
             Watcher::start(
                 &root.clone(),
-                excludes.clone(),
+                excludes,
                 sink.clone(),
                 Box::new(move |batch| {
                     let changed: Vec<PathBuf> = batch.created.iter().chain(&batch.modified).cloned().collect();
-                    index.update(&changed, &batch.removed);
-                    kotlin_bridge.files_changed(changed.iter().chain(&batch.removed));
-                    lsp.project_files_changed(batch.created.iter().chain(&batch.removed));
-                    // Atomic saves by external tools surface as `created`.
                     documents.on_disk_changed(&changed);
-                    // A framework's root marker (`angular.json`) created or deleted: its
-                    // templates gain or lose their mode. Markers in `node_modules` only
-                    // count here when the folder isn't excluded (it is by default).
-                    if batch.created.iter().chain(&batch.removed).any(|p| languages.is_framework_marker(p)) {
-                        documents.redetect_languages();
-                    }
                     record_external_changes(&history, &changed, &batch.removed);
-                    if trusted.load(Ordering::Acquire) && !batch.removed.is_empty() {
-                        delete_deployed(
-                            &runtime,
-                            remote.clone(),
-                            settings.clone(),
-                            root.clone(),
-                            batch.removed.clone(),
-                            sink.clone(),
-                        );
-                    }
-                    // Build files / conventional folders changed: re-detect roots.
-                    let touched = changed.iter().chain(&batch.removed).filter_map(|p| p.strip_prefix(&root).ok());
-                    if touched.into_iter().any(ide_workspace::roots::affects_roots) {
-                        let fresh = ide_workspace::roots::detect(&root);
-                        if *detected_roots.read() != fresh {
-                            // Detected excluded folders (`target`, `build`) leave the index too.
-                            let effective = settings.effective();
-                            index.set_scope(
-                                index_roots(&root, content_roots(&effective, &root)),
-                                exclude_globs(&root, &effective, &fresh),
-                            );
-                            *detected_roots.write() = fresh;
-                            sink.emit(IdeEvent::ProjectRootsChanged { root: root.clone().into() });
-                        }
-                    }
-                    // A repository was cloned / initialised / removed below the project: its
-                    // `.git/HEAD` (the watcher reports nothing else of `.git`) appeared or went.
-                    let known = repos.read().roots();
-                    let git_dirs = changed.iter().chain(&batch.removed).chain(&batch.vcs).any(|p| {
-                        let Some(dir) = p.ends_with(".git/HEAD").then(|| p.parent().and_then(Path::parent)).flatten()
-                        else {
-                            return false;
-                        };
-                        known.iter().any(|r| r == dir) != p.is_file()
-                    });
-                    if git_dirs {
+                    if batch.created.iter().chain(&batch.removed).chain(&batch.vcs).any(|p| p.ends_with(".git/HEAD")) {
                         scan_repositories(&root, &repos, &settings, &sink);
                     }
-                    let vcs_moved = batch.vcs.iter().any(|p| vcs_path_changed(p));
-                    if git_dirs || vcs_moved {
-                        sink.emit(IdeEvent::VcsChanged { root: root.clone().into() });
-                    }
+                    sink.emit(IdeEvent::VcsChanged { root: root.clone().into() });
                 }),
             )?
         };
-
-        // Scratch files live outside the project; watch them too so the
-        // Project view and open editors follow changes made there.
-        let scratch_watcher = {
-            let dir = self.data_dir.join("scratches");
-            let documents = documents.clone();
-            std::fs::create_dir_all(&dir).ok().and_then(|()| {
-                Watcher::start(
-                    &dir,
-                    Vec::new(),
-                    sink.clone(),
-                    Box::new(move |batch| {
-                        let changed: Vec<PathBuf> = batch.created.iter().chain(&batch.modified).cloned().collect();
-                        documents.on_disk_changed(&changed);
-                    }),
-                )
-                .map_err(|e| tracing::warn!("scratches watcher: {e}"))
-                .ok()
-            })
-        };
-
-        let content_watchers = extra_roots
-            .iter()
-            .filter_map(|r| {
-                let w = content_root_watcher(r, &excludes, &sink, &index, &documents, &history, Some(&kotlin_bridge))?;
-                Some((r.clone(), w))
-            })
-            .collect();
-        mark("watcher");
-        {
-            let (root, repos, settings, sink) = (root.clone(), repos.clone(), settings.clone(), sink.clone());
-            std::thread::Builder::new()
-                .name("openidea-vcs-roots".into())
-                .spawn(move || scan_repositories(&root, &repos, &settings, &sink))?;
-        }
-        mark("git");
-        tracing::info!("opened {} in window {window} in {} ms {laps:?}", root.display(), started.elapsed().as_millis());
-
-        let (db, http_history, agents) = self.project_services(&root, &project_key);
+        let project_key = project_key(&root);
         let notebooks = crate::notebook::NotebookService::new(
             self.local_data_dir.join("notebook-runtime").join(uuid::Uuid::new_v4().to_string()),
             sink.clone(),
         );
-        ide_agent::registry::maintain(crate::ops::agent::registry_paths(self));
         let project = Arc::new(Project {
             trusted,
-            root,
+            root: root.clone(),
             sink,
             languages,
             settings,
@@ -403,73 +125,27 @@ impl Host {
             repos,
             structure: Arc::new(StructureService::new(syntax.clone())),
             syntax,
-            detected_roots,
+            detected_roots: Arc::default(),
             cache_dir: self.local_data_dir.join("cache").join(&project_key),
             java_launch_snapshots: Mutex::new(crate::ops::java::cache::Session::new(
                 self.local_data_dir.join("cache").join(&project_key).join("build"),
             )),
-            db,
-            http_history,
-            agents,
             notebooks,
-            kotlin_bridge: Some(kotlin_bridge),
+            kotlin_bridge: None,
             watcher,
-            content_watchers: Mutex::new(content_watchers),
-            _scratch_watcher: scratch_watcher,
+            content_watchers: Mutex::new(Vec::new()),
+            _scratch_watcher: None,
             light: false,
         });
-        {
-            let weak = Arc::downgrade(&project);
-            project.lsp.set_candidates_hook(Box::new(move |q, cancel| {
-                weak.upgrade().map(|p| p.reference_candidates(q, cancel)).unwrap_or_default()
-            }));
-        }
-        {
-            let weak = Arc::downgrade(&project);
-            project.lsp.set_project_excludes_hook(Box::new(move || {
-                weak.upgrade().map(|p| p.exclude_globs()).unwrap_or_default()
-            }));
-        }
+        apply_git_executable(&project.settings.effective());
         self.insert_project(window, project.clone());
-        if let Some(bridge) = &project.kotlin_bridge {
-            bridge.start(&self.runtime);
-        }
-        if let Some(cmd) = post_start {
-            self.environment.spawn_post_start(cmd, project.root.clone(), project.sink.clone());
+        {
+            let project = project.clone();
+            std::thread::Builder::new().name("openidea-vcs-roots".into()).spawn(move || {
+                scan_repositories(&project.root, &project.repos, &project.settings, &project.sink);
+            })?;
         }
         Ok(project)
-    }
-
-    /// Database connections, HTTP Client history and coding agents of the project at `root`.
-    pub(crate) fn project_services(
-        &self,
-        root: &Path,
-        project_key: &str,
-    ) -> (Arc<ide_db::DbManager>, Arc<ide_http::History>, Arc<ide_agent::AgentManager>) {
-        let db = Arc::new(ide_db::DbManager::new(
-            root.to_path_buf(),
-            self.data_dir.join("db-passwords.json"),
-            self.data_dir.join("db-history.json"),
-            self.ssh.clone(),
-        ));
-        let http_history = Arc::new(ide_http::History::new(self.data_dir.join("http-history").join(project_key)));
-        let agents = Arc::new(ide_agent::AgentManager::new(
-            ide_agent::AgentPaths {
-                project_root: root.to_path_buf(),
-                store_dir: self.data_dir.join("agents").join(project_key),
-                // Outside the app data dir: its path has spaces on macOS, which trips up build scripts.
-                worktrees_dir: dirs::home_dir()
-                    .unwrap_or_else(|| self.data_dir.clone())
-                    .join(".openidea")
-                    .join("worktrees")
-                    .join(project_key),
-                models_file: self.data_dir.join("agents").join("models.json"),
-                custom_agents_dir: Some(self.config_dir.join("agents")),
-                home_dir: dirs::home_dir(),
-            },
-            self.runtime.clone(),
-        ));
-        (db, http_history, agents)
     }
 }
 
@@ -507,7 +183,6 @@ impl Host {
         documents.add_observer(Arc::new(HistoryObserver(history.clone())));
         let watcher = light_watcher(&dir, &sink, &documents, &history)?;
         let project_key = project_key(&dir);
-        let (db, http_history, agents) = self.project_services(&dir, &project_key);
         let notebooks = crate::notebook::NotebookService::new(
             self.local_data_dir.join("notebook-runtime").join(uuid::Uuid::new_v4().to_string()),
             sink.clone(),
@@ -530,9 +205,6 @@ impl Host {
             java_launch_snapshots: Mutex::new(crate::ops::java::cache::Session::new(
                 self.local_data_dir.join("cache").join(&project_key).join("build"),
             )),
-            db,
-            http_history,
-            agents,
             notebooks,
             kotlin_bridge: None,
             watcher,

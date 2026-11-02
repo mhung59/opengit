@@ -5,8 +5,6 @@ import { runSearchFieldCommand, showContextMenu } from "@/ui";
 import { showCustomizeToolbar } from "./MainToolbarDialog";
 import { quickSwitchItems } from "./quickSwitch";
 import { notify } from "./notificationStore";
-import { NOTIFICATIONS_TOOL_WINDOW } from "./Notifications";
-import { activateToolWindow } from "./toolwindows/store";
 import { toggleTheme } from "./theme";
 import { cancelTask, canCancel, useTasks } from "./tasks";
 import { maybeEditorService, showStatusInfo } from "./contributions";
@@ -104,13 +102,6 @@ export function registerShellActions(): () => void {
       category: "View",
       keywords: ["toolbar", "widgets", "title bar"],
       run: showCustomizeToolbar,
-    },
-    {
-      id: "view.notifications",
-      title: "Notifications",
-      category: "View",
-      icon: "bell",
-      run: () => activateToolWindow(NOTIFICATIONS_TOOL_WINDOW),
     },
     // Keys of search fields (find bar, Find in Files) that are editor shortcuts elsewhere.
     {

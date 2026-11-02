@@ -1,52 +1,44 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="src-tauri/icons/source/openidea-wordmark-dark.svg">
-    <img src="src-tauri/icons/source/openidea-wordmark.svg" alt="OpenIDEA" height="56">
-  </picture>
-</p>
+﻿# OpenIDEA — Git edition
 
-<p align="center">
-  The IDE you know, rebuilt in Rust.
-</p>
+[OpenGit](https://github.com/mhung59/opengit) keeps OpenIDEA's original desktop interface and concentrates it on Git management. It retains the welcome screen, project tree, editor tabs and splits, themes, keyboard shortcuts, Commit/Shelf/Stash panel, Git Log/Console/Worktrees, branch menus, diff viewer, merge editor and Local History.
 
-<p align="center">
-  <a href="https://github.com/l0ng-ai/openidea/releases/latest"><b>Download</b></a>
-  &nbsp;·&nbsp;
-  <a href="#benchmark">Benchmark</a>
-  &nbsp;·&nbsp;
-  <a href="https://discord.gg/2Zy4yn7gP">Discord</a>
-</p>
+AI agents, database clients and the installable plugin system have been removed. Build/run/debug, coverage/profiling, HTTP clients, deployment and remote development are not activated or exposed. The integrated Terminal (tabs, splits, shortcuts and Settings) remains available alongside Git Console. Bookmarks and the Notifications tool window, bell and menu entries are removed. Operation error messages remain visible. The editor still opens and saves files and provides syntax highlighting, folding, file search and text search; no project code scan or language server starts when a repository opens. Commit options retain Git hooks, author and sign-off, and omit code formatting, code analysis and TODO checks.
 
-https://github.com/user-attachments/assets/234dd54c-1255-4b3a-b35c-533d78d737c0
+The original workbench and VCS components are used directly. There is no replacement interface. Shared backend libraries needed by these components are retained; removing a feature does not mean deleting every library that also supports the editor.
 
-OpenIDEA brings the IntelliJ IDEA way of working — its keymap, its tool windows,
-its search-everything habits — to a native app with a Rust core.
+## Run
 
-Editor, code insight, debugger, Git, terminal, database and HTTP clients,
-for 60+ languages. Builds for macOS, Windows and Linux.
+Requires Node.js, pnpm, Rust 1.96+, Git and the Tauri 2 native build prerequisites. On Windows install MSVC Build Tools and WebView2.
 
-## Benchmark
+```sh
+pnpm install
+pnpm dev:app
+```
 
-Opening [freqtrade](https://github.com/freqtrade/freqtrade) (Python, ~770 files)
-with warm caches, median of 5 runs:
+If pnpm is not installed globally, use `npx pnpm install` and `npx pnpm dev:app`.
 
-|                             | OpenIDEA          | IntelliJ IDEA 2026.2.3 |
-| --------------------------- | ----------------- | ---------------------- |
-| Window with the project     | **0.9 s**         | 3.1 s                  |
-| Ready (CPU settled)         | **1.1 s**         | 13.2 s                 |
-| Memory (USS, all processes) | **169 MB**        | 2011 MB                |
-| CPU time until ready        | **2.4 s**         | 47.9 s                 |
-| Idle CPU                    | **4 %** of a core | 7 % of a core          |
-| Quit                        | **0.3 s**         | 5.9 s                  |
+`pnpm dev` previews the original workbench with sample data in a browser. Real repositories and Git operations use the desktop app.
 
-A release build of OpenIDEA from `main` and IDEA with default settings and plugins, on
-Windows 11, 32-core AMD, 62 GB RAM.
-IDEA analyses Python more deeply, so "ready" doesn't mean the same work on
-both sides. Both are measured from the outside, the same way: see
-[`perf/compare`](perf/compare) to run it on your machine and projects.
+## Validation
 
-## License
+```sh
+pnpm build
+pnpm exec vitest run src/features/vcs src/platform/product.test.ts
+pnpm exec playwright test e2e/gitEdition.spec.ts e2e/diff.spec.ts
+cargo check -p opengit --locked
+cargo test -p ide-host --test git_edition --test vcs_roots --test vcs_encoding
+```
 
-[Apache 2.0](LICENSE). Bundled third-party assets are listed in [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
+Set `OPENIDEA_E2E_CHANNEL=msedge` to use installed Edge for browser tests; otherwise install Playwright Chromium.
 
-<sub>Not affiliated with JetBrains. IntelliJ IDEA is a trademark of JetBrains s.r.o.</sub>
+## Upstream and license
+
+Derived from [l0ng-ai/openidea](https://github.com/l0ng-ai/openidea). Apache-2.0; attribution is retained in LICENSE, NOTICE and THIRD_PARTY_LICENSES.md. Not affiliated with JetBrains. IntelliJ IDEA is a JetBrains trademark.
+
+## Windows installer
+
+```sh
+pnpm build:windows
+```
+
+The production NSIS installer is generated under `target/release/bundle/nsis/`. The app uses the `io.github.mhung59.opengit` identifier and installs for the current Windows user, separately from upstream OpenIDEA. Git must be installed and available on PATH.

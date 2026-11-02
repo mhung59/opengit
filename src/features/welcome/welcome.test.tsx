@@ -86,7 +86,7 @@ afterEach(() => {
 describe("Welcome › Projects", () => {
   it("shows brand, version and project rows with badges, ~ paths and branches", async () => {
     await renderWelcome();
-    expect(screen.getByText("OpenIDEA")).toBeTruthy();
+    expect(screen.getByText("OpenGit")).toBeTruthy();
     expect(screen.getByText("1.2.3")).toBeTruthy();
     const rows = screen.getAllByRole("option");
     expect(rows).toHaveLength(3);
@@ -134,19 +134,19 @@ describe("Welcome › Projects", () => {
   it("shows the landing page without recent projects", async () => {
     recent = [];
     await renderWelcome();
-    expect(screen.getByText("Welcome to OpenIDEA")).toBeTruthy();
+    expect(screen.getByText("Welcome to OpenGit")).toBeTruthy();
     expect(screen.queryByLabelText("Search projects")).toBeNull();
   });
 });
 
 describe("Welcome › navigation", () => {
-  it("lists Plugins only when the plugins settings page is contributed, and embeds it", async () => {
+  it("does not expose Plugins even when a settings page is contributed", async () => {
     await renderWelcome();
     expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
     const dispose = registerSettingsPage({ id: "plugins", title: "Plugins", component: () => <div>plugin page</div> });
     await act(async () => {});
-    fireEvent.click(screen.getByRole("button", { name: "Plugins" }));
-    expect(screen.getByText("plugin page")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Plugins" })).toBeNull();
+    expect(screen.queryByText("plugin page")).toBeNull();
     act(() => dispose());
     expect(screen.getByRole("button", { name: "Projects" }).getAttribute("aria-current")).toBe("page");
   });

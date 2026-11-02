@@ -291,11 +291,7 @@ fn build_project_window(app: &AppHandle, mut config: WindowConfig) -> IdeResult<
     }
     let state = app.try_state::<AppState>();
     let appearance = state.as_ref().map(|s| s.global_settings.effective().appearance);
-    // A plugin theme replaces the built-in one in either OS mode; the UI records its resolved frame.
-    let plugin_frame = state.as_ref().and_then(|s| s.plugins.startup_frame()).and_then(|c| hex_color(&c));
-    if let Some(color) = plugin_frame {
-        config.background_color = Some(color);
-    } else if let Some(a) = &appearance {
+    if let Some(a) = &appearance {
         config.background_color = Some(frame_color(a, false));
     }
     #[cfg(target_os = "linux")]
@@ -307,7 +303,7 @@ fn build_project_window(app: &AppHandle, mut config: WindowConfig) -> IdeResult<
     #[cfg(target_os = "macos")]
     align_titlebar(app, &window);
     // "Sync with OS" needs the OS mode, known once the window exists.
-    if let Some(a) = appearance.filter(|a| plugin_frame.is_none() && (a.sync_with_os || a.theme == "system"))
+    if let Some(a) = appearance.filter(|a| a.sync_with_os || a.theme == "system")
         && window.theme().is_ok_and(|t| t == Theme::Dark)
     {
         let _ = window.set_background_color(Some(frame_color(&a, true)));

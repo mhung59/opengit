@@ -35,7 +35,6 @@ import { LOCAL_HISTORY_KIND } from "./localHistoryKind";
 import { registerLocalHistoryActions } from "./localHistoryActions";
 import { MERGE_KIND, type MergeData } from "./mergeKind";
 import { baseName } from "./model";
-import { installDiagnosticsTracking } from "./commitChecks";
 import { installPreparedMessage, useCommit } from "./commitStore";
 import { installFileConfirmations } from "./confirmations";
 import { installIncomingCheck } from "./incoming";
@@ -162,7 +161,6 @@ export function activate(): () => void {
   const disposers = [
     installVcsStore(),
     installGitLog(),
-    installDiagnosticsTracking(),
     installPreparedMessage(),
     installIncomingCheck(),
     installFileConfirmations(),

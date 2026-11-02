@@ -14,7 +14,7 @@ import { LightEditStatus } from "./LightEditStatus";
 import { installLocaleSync, registerLocalizedActions } from "./locale";
 import { installMenuBridge } from "./menuBridge";
 import { NewProjectOverlay } from "./NewProject";
-import { projectActions, registerPowerSaveBanner } from "./projectActions";
+import { projectActions } from "./projectActions";
 import { installWindowTitle } from "./title";
 import { installLaunchHandling, installLightEditAutoClose, windowActions } from "./windows";
 import { WorkspaceDialogHost } from "./WorkspaceDialog";
@@ -39,7 +39,6 @@ export function activate(): () => void {
       lightEdit: true,
     }),
     registerLocalizedActions(projectActions),
-    registerPowerSaveBanner(),
     registerInvalidateCachesActions(),
     installMenuBridge(),
     installWindowTitle(),

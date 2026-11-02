@@ -30,11 +30,9 @@ ide-terminal.workspace = true
 ide-run.workspace = true
 ide-sdk.workspace = true
 ide-http.workspace = true
-ide-db.workspace = true
 ide-ssh.workspace = true
 ide-remote.workspace = true
 ide-jsonrpc.workspace = true
-ide-agent.workspace = true
 ide-notebook.workspace = true
 ide-tools = { path = "../ide-tools" }
 serde.workspace = true

@@ -12,7 +12,7 @@ import { Button, Icon, Input, type SelectOption, T } from "@/ui";
 import { Row, SettingSelect } from "../components/Form";
 import { useSetting } from "../components/context";
 import type { PageSpec } from "./spec";
-import { BoundToggle, Grid, Indented, RadioRow, TableEditor, ToggleNumber } from "./workflowControls";
+import { BoundToggle, Indented, RadioRow, TableEditor, ToggleNumber } from "./workflowControls";
 import styles from "./Workflow.module.css";
 import { tx } from "@/platform/i18n";
 
@@ -260,30 +260,6 @@ function MessageLimits() {
   );
 }
 
-function CommitChecks() {
-  return (
-    <Grid
-      left={
-        <>
-          <BoundToggle
-            k="vcs.commit.analyzeCode"
-            label="Analyze code"
-            hint="Reports errors and warnings from language servers."
-          />
-          <BoundToggle k="vcs.commit.checkTodo" label="Check TODO" hint="Looks for TODO and FIXME in added lines." />
-          <BoundToggle k="vcs.commit.cleanup" label="Cleanup" hint="Applies fix-all code actions." />
-        </>
-      }
-      right={
-        <>
-          <BoundToggle k="vcs.commit.reformat" label="Reformat code" />
-          <BoundToggle k="vcs.commit.optimizeImports" label="Optimize imports" />
-        </>
-      }
-    />
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Issue Navigation
 
@@ -382,17 +358,6 @@ export const VCS_PAGES: PageSpec[] = [
             label: "Limit subject line",
             keywords: ["Limit body line", "Show right margin", "Wrap when typing reaches right margin"],
             component: MessageLimits,
-          },
-        ],
-      },
-      {
-        title: "Commit Checks",
-        options: [
-          {
-            kind: "custom",
-            label: "Analyze code",
-            keywords: ["Check TODO", "Reformat code", "Optimize imports", "Cleanup", "before commit"],
-            component: CommitChecks,
           },
         ],
       },

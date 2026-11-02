@@ -1,4 +1,4 @@
-﻿# OpenIDEA — Git edition
+# OpenGit
 
 [OpenGit](https://github.com/mhung59/opengit) keeps OpenIDEA's original desktop interface and concentrates it on Git management. It retains the welcome screen, project tree, editor tabs and splits, themes, keyboard shortcuts, Commit/Shelf/Stash panel, Git Log/Console/Worktrees, branch menus, diff viewer, merge editor and Local History.
 

@@ -8,7 +8,10 @@ const loaders: Array<() => Promise<unknown>> = [];
  * not `React.lazy`: a suspended boundary is revealed ~300 ms late (React's
  * fallback throttling), even when the chunk is already there.
  */
-export function lazyComponent<P extends object>(load: () => Promise<ComponentType<P>>): ComponentType<P> {
+export function lazyComponent<P extends object>(
+  load: () => Promise<ComponentType<P>>,
+  options: { preload?: boolean } = {},
+): ComponentType<P> {
   let loaded: ComponentType<P> | null = null;
   let pending: Promise<ComponentType<P>> | null = null;
   const get = () =>
@@ -19,7 +22,7 @@ export function lazyComponent<P extends object>(load: () => Promise<ComponentTyp
         throw e;
       },
     ));
-  loaders.push(get);
+  if (options.preload) loaders.push(get);
 
   function LazyComponent(props: P) {
     const [Component, setComponent] = useState<ComponentType<P> | null>(() => loaded);
@@ -40,8 +43,8 @@ export function lazyComponent<P extends object>(load: () => Promise<ComponentTyp
 }
 
 /**
- * Loads every lazy component's code one at a time while the app is idle, so a
- * view opened later shows at once. Call after start-up.
+ * Loads opted-in views one at a time while the app is idle. Settings pages and
+ * occasional viewers stay unloaded until rendered.
  */
 export function prefetchLazyComponents(): () => void {
   let cancelled = false;

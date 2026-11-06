@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { DEFAULT_SSH_CONFIG } from "@/platform/remoteSettings";
 import { commands, type Settings } from "@/platform/ipc";
+import { useSettingsPages } from "@/workbench/contributions";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const settingsSet = vi.fn();
 const settingsGet = vi.fn();
@@ -21,16 +21,16 @@ vi.mock("@/platform/ipc", async (importOriginal) => {
   };
 });
 
-import { registerAction, executeAction } from "@/platform/actions";
-import { useProject } from "@/platform/project";
+import { executeAction, registerAction } from "@/platform/actions";
 import { useKeymap } from "@/platform/keymap";
+import { useProject } from "@/platform/project";
 import { ContextMenuHost } from "@/ui";
+import { MessagesHost } from "@/workbench/messages";
+import { activate } from "..";
 import { PageContext, useSetting } from "../components/context";
+import { SettingsDialog } from "../dialog/SettingsDialog";
 import { DEFAULT_SETTINGS, setAt } from "../model/schema";
 import { openSettings, stage, useSettingsDialog } from "../model/staging";
-import { SettingsDialog } from "../dialog/SettingsDialog";
-import { activate } from "..";
-import { MessagesHost } from "@/workbench/messages";
 
 let current: Settings;
 let dispose: () => void = () => {};
@@ -61,20 +61,38 @@ async function openDialog(page?: string) {
   );
   await act(async () => {
     await executeAction("file.settings", page);
+    await vi.dynamicImportSettled();
   });
   return screen.getByRole("dialog", { name: "Settings" });
 }
 
 describe("Settings dialog", () => {
-  it("stages properties conversion through its action and applies the checkbox", async () => {
-    const dialog = await openDialog("editor.fileEncodings");
-    const checkbox = within(dialog).getByRole("checkbox", { name: "Transparent native-to-ascii conversion" });
-    expect(checkbox).not.toBeChecked();
-    await act(async () => fireEvent.click(checkbox));
-    expect(checkbox).toBeChecked();
-    expect(settingsSet).not.toHaveBeenCalled();
+  it("keeps retired IDE pages out of the Git edition", async () => {
+    await openDialog("appearance");
+    const pages = useSettingsPages.getState().pages;
+    for (const id of [
+      "build.cmake",
+      "build.gradle",
+      "languages.java",
+      "tools.sshConfigurations",
+      "editor.codeStyle.other",
+    ]) {
+      expect(pages.has(id), id).toBe(false);
+    }
+  });
+
+  it("edits global font preferences in Settings for New Projects", async () => {
+    useProject.setState({ project: { root: "/project" } as never });
+    render(<SettingsDialog />);
+    await act(async () => {
+      await executeAction("file.newProjectsSettings", "editor.font");
+      await vi.dynamicImportSettled();
+    });
+    const dialog = screen.getByRole("dialog", { name: "Settings for New Projects" });
+    expect(within(dialog).queryByRole("radiogroup", { name: "Settings scope" })).toBeNull();
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Font" }), { target: { value: "Global Font" } });
     await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Apply" })));
-    expect(settingsSet).toHaveBeenCalledWith("global", "editor.encodings.nativeToAscii", "true");
+    expect(settingsSet).toHaveBeenCalledWith("global", "editor.fontFamily", '"Global Font"');
   });
 
   it("toggles properties conversion through its stable action", async () => {
@@ -82,51 +100,6 @@ describe("Settings dialog", () => {
     expect(settingsSet).toHaveBeenCalledWith("global", "editor.encodings.nativeToAscii", "true");
     await executeAction("editor.encodings.toggleNativeToAscii");
     expect(settingsSet).toHaveBeenLastCalledWith("global", "editor.encodings.nativeToAscii", "false");
-  });
-
-  it("edits CMake profiles in project settings and persists them on Apply", async () => {
-    useProject.setState({ project: { root: "/project" } as never });
-    const dialog = await openDialog("build.cmake");
-    expect(within(dialog).getByRole("option", { name: "Debug" })).toBeInTheDocument();
-    fireEvent.click(
-      within(within(dialog).getByRole("toolbar", { name: "CMake profile actions" })).getByRole("button", {
-        name: "Add",
-      }),
-    );
-    fireEvent.change(within(dialog).getByLabelText("Name"), { target: { value: "Release" } });
-    fireEvent.change(within(dialog).getByLabelText("Build type"), { target: { value: "Release" } });
-    fireEvent.change(within(dialog).getByLabelText("Generator"), { target: { value: "Ninja" } });
-    fireEvent.change(within(dialog).getByLabelText("Build arguments"), { target: { value: "-j 8" } });
-    expect(settingsSet).not.toHaveBeenCalled();
-    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Apply" })));
-    const write = settingsSet.mock.calls.find((c) => c[1] === "cmake.profiles")!;
-    expect(write[0]).toBe("project");
-    expect(JSON.parse(write[2])).toEqual([
-      expect.objectContaining({ name: "Debug", buildType: "Debug" }),
-      expect.objectContaining({ name: "Release", buildType: "Release", generator: "Ninja", buildArgs: ["-j", "8"] }),
-    ]);
-  });
-
-  it("finds Gradle JVM and applies project Gradle settings", async () => {
-    useProject.setState({ project: { root: "/project" } as never });
-    const dialog = await openDialog("build.gradle");
-    fireEvent.change(within(dialog).getByLabelText("Search settings"), { target: { value: "Gradle JVM" } });
-    expect(within(dialog).getByRole("tree", { name: "Settings pages" }).textContent).toContain("Gradle");
-    expect(within(dialog).getByLabelText("Gradle JVM")).toBeInTheDocument();
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.jvm", "/jdk21"));
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.distribution", "local"));
-    expect(within(dialog).getByPlaceholderText("Gradle installation directory")).toBeInTheDocument();
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.home", "/gradle"));
-    await act(async () => stage("build.gradle", "project", "languages.java.gradle.userHome", "/gradle-cache"));
-    await act(async () => fireEvent.click(within(dialog).getByRole("button", { name: "Apply" })));
-    expect(settingsSet.mock.calls).toEqual(
-      expect.arrayContaining([
-        ["project", "languages.java.gradle.jvm", '"/jdk21"'],
-        ["project", "languages.java.gradle.distribution", '"local"'],
-        ["project", "languages.java.gradle.home", '"/gradle"'],
-        ["project", "languages.java.gradle.userHome", '"/gradle-cache"'],
-      ]),
-    );
   });
 
   it("searches pages and highlights matching option labels", async () => {
@@ -283,32 +256,10 @@ describe("Settings dialog", () => {
     ]);
   });
 
-  it("enables Apply and Reset for a secret-only edit, and Reset discards it", async () => {
-    current = setAt(current, "ssh.configs", [{ ...DEFAULT_SSH_CONFIG, id: "ssh-dialog", auth: "password" }]);
-    useProject.setState({ settings: current });
-    const needsSecret = vi.spyOn(commands, "sshNeedsSecret").mockResolvedValue({ status: "ok", data: true });
-    const setSecret = vi.spyOn(commands, "sshSetSecret").mockResolvedValue();
-    try {
-      const dialog = await openDialog("tools.sshConfigurations");
-      const apply = within(dialog).getByRole("button", { name: "Apply" });
-      expect(apply).toBeDisabled();
-      fireEvent.change(within(dialog).getByLabelText("Password"), { target: { value: crypto.randomUUID() } });
-      expect(apply).toBeEnabled();
-      fireEvent.click(within(dialog).getByRole("button", { name: "Reset" }));
-      expect(within(dialog).getByLabelText("Password")).toHaveValue("");
-      expect(apply).toBeDisabled();
-      expect(setSecret).not.toHaveBeenCalled();
-      expect(settingsSet).not.toHaveBeenCalled();
-    } finally {
-      needsSecret.mockRestore();
-      setSecret.mockRestore();
-    }
-  });
-
   it("Cancel discards staged edits", async () => {
-    const dialog = await openDialog("editor.codeStyle.other");
-    fireEvent.change(within(dialog).getByLabelText("Tab size"), { target: { value: "2" } });
-    expect(Object.keys(useSettingsDialog.getState().staged)).toEqual(["global|editor.tabSize"]);
+    const dialog = await openDialog("editor.font");
+    fireEvent.change(within(dialog).getByRole("combobox", { name: "Font" }), { target: { value: "Unsaved Font" } });
+    expect(Object.keys(useSettingsDialog.getState().staged)).toEqual(["global|editor.fontFamily"]);
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(settingsSet).not.toHaveBeenCalled();
     expect(useSettingsDialog.getState().open).toBe(false);
@@ -318,11 +269,11 @@ describe("Settings dialog", () => {
     registerAction({
       id: "code.duplicateLine",
       title: "Duplicate Line",
-      category: "Code",
+      category: "Edit",
       when: "editorFocus",
       run: () => {},
     });
-    registerAction({ id: "t.mine", title: "My Action", category: "Code", when: "editorFocus", run: () => {} });
+    registerAction({ id: "t.mine", title: "My Action", category: "Edit", when: "editorFocus", run: () => {} });
     const dialog = await openDialog("keymap");
     const row = within(dialog).getByText("My Action");
     fireEvent.doubleClick(row);
@@ -347,7 +298,7 @@ describe("Settings dialog", () => {
 
   it("duplicates the keymap from the gear menu and edits the copy", async () => {
     render(<ContextMenuHost />);
-    registerAction({ id: "t.dup", title: "Dup Target", category: "Code", run: () => {} });
+    registerAction({ id: "t.dup", title: "Dup Target", category: "Edit", run: () => {} });
     const dialog = await openDialog("keymap");
     fireEvent.click(within(dialog).getByRole("button", { name: "Show Scheme Actions" }));
     fireEvent.click(await screen.findByText("Duplicate…"));
@@ -384,48 +335,6 @@ describe("Settings dialog", () => {
     });
     expect(useKeymap.getState().preset).toBe("intellij-macos");
     expect(useKeymap.getState().overrides).toEqual({ "t.dup": ["Ctrl+Alt+Shift+Meta+F9"] });
-  });
-
-  describe("toolchain settings with a project open", () => {
-    let global: Settings;
-    beforeEach(() => {
-      // Global layer: -Xmx1g; the project overrides it with -Xmx4g.
-      global = setAt(structuredClone(DEFAULT_SETTINGS) as Settings, "languages.java.jdtlsVmArgs", "-Xmx1g");
-      current = setAt(global, "languages.java.jdtlsVmArgs", "-Xmx4g");
-      settingsGetGlobal.mockImplementation(async () => global);
-      useProject.setState({
-        settings: current,
-        project: { root: "/p", name: "p", settings: current } as never,
-      });
-    });
-
-    it("edit the project first; Global shows and writes the global layer", async () => {
-      const dialog = await openDialog("languages.java");
-      expect(within(dialog).getByRole("radio", { name: "This project" })).toHaveAttribute("aria-checked", "true");
-      expect(within(dialog).getByLabelText("JVM options")).toHaveValue("-Xmx4g");
-
-      fireEvent.click(within(dialog).getByRole("radio", { name: "Global" }));
-      expect(within(dialog).getByLabelText("JVM options")).toHaveValue("-Xmx1g");
-      expect(within(dialog).getByText(/used by new projects/)).toBeInTheDocument();
-
-      fireEvent.change(within(dialog).getByLabelText("JVM options"), { target: { value: "-Xmx2g" } });
-      await act(async () => {
-        fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
-      });
-      expect(settingsSet.mock.calls).toEqual([["global", "languages.java.jdtlsVmArgs", '"-Xmx2g"']]);
-    });
-
-    it("Settings for New Projects edits the global layer on every page", async () => {
-      render(<SettingsDialog />);
-      await act(async () => {
-        await executeAction("file.newProjectsSettings");
-      });
-      const dialog = screen.getByRole("dialog", { name: "Settings for New Projects" });
-      expect(within(dialog).queryByRole("radiogroup", { name: "Settings scope" })).toBeNull();
-      expect(within(dialog).getByLabelText("JVM options")).toHaveValue("-Xmx1g");
-      expect(within(dialog).getByLabelText("Language server JDK")).toBeInTheDocument();
-      expect(within(dialog).getByText(/used by new projects/)).toBeInTheDocument();
-    });
   });
 
   it("keeps object settings stable when child keys are staged (HTTP Proxy)", async () => {

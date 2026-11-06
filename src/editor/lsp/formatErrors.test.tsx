@@ -1,8 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
-import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
 import type { IdeError } from "@/bindings";
+import * as actions from "@/platform/actions";
 import { registerAction } from "@/platform/actions";
 import { _resetI18nForTests, setLocale } from "@/platform/i18n";
 import { IpcError } from "@/platform/ipc";
@@ -15,6 +12,10 @@ import {
   notificationServiceImpl,
   useNotifications,
 } from "@/workbench/notificationStore";
+import { EditorState } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatDocument } from "./format";
 import * as lsp from "./lsp";
 
@@ -46,22 +47,13 @@ describe.each(["prettier", "oxfmt"])("%s formatter errors", (name) => {
   const tool = { type: "tool", tool: name, missing: false } as const;
   const display = name === "prettier" ? "Prettier" : name;
   it("uses structured missing-tool information to request the shared install prompt", async () => {
-    const prompt = vi.fn();
-    const dispose = registerAction({
-      id: "tools.promptInstall",
-      title: "Install Missing Tool",
-      run: ({ arg }) => prompt(arg),
-    });
-    try {
-      failWith({ kind: "notFound", message: "unrelated diagnostic", data: { ...tool, missing: true } });
-      await formatDocument(viewFor());
-      expect(prompt).toHaveBeenCalledWith({ name, sticky: true });
-      await formatDocument(viewFor(), { explicit: false, onSave: true });
-      expect(prompt).toHaveBeenLastCalledWith({ name, sticky: false });
-      expect(useNotifications.getState().items).toHaveLength(0);
-    } finally {
-      dispose();
-    }
+    const prompt = vi.spyOn(actions, "executeAction").mockResolvedValue(true);
+    failWith({ kind: "notFound", message: "unrelated diagnostic", data: { ...tool, missing: true } });
+    await formatDocument(viewFor());
+    expect(prompt).toHaveBeenCalledWith("tools.promptInstall", { name, sticky: true });
+    await formatDocument(viewFor(), { explicit: false, onSave: true });
+    expect(prompt).toHaveBeenLastCalledWith("tools.promptInstall", { name, sticky: false });
+    expect(useNotifications.getState().items).toHaveLength(0);
   });
 
   it("does not treat text alone or a broken custom executable as a missing installation", async () => {

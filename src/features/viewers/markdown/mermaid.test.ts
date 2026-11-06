@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderMarkdown } from "./render";
 import { hasMermaid, renderMermaidIn, resetMermaidForTests, subscribeTheme, themeKey } from "./mermaid";
+import { renderMarkdown } from "./render";
 
 const m = vi.hoisted(() => ({
   loads: 0,
@@ -130,16 +130,17 @@ describe("mermaid in the markdown preview", () => {
     }
   });
 
-  it("re-renders when switching between plugin themes of the same light / dark base", async () => {
+  it("re-renders when the accent changes", async () => {
     const root = document.documentElement;
     const changed = vi.fn();
     const off = subscribeTheme(changed);
+    const previous = root.style.getPropertyValue("--accent");
     try {
       root.dataset.theme = "dark";
-      root.dataset.pluginTheme = "acme-themes/night";
+      root.style.setProperty("--accent", "#123456");
       const firstKey = themeKey();
       await renderMermaidIn(preview(SEQ)).done;
-      root.dataset.pluginTheme = "acme-themes/dusk";
+      root.style.setProperty("--accent", "#654321");
       await Promise.resolve();
       expect(changed).toHaveBeenCalled();
       expect(themeKey()).not.toBe(firstKey);
@@ -147,7 +148,8 @@ describe("mermaid in the markdown preview", () => {
       expect(m.render).toHaveBeenCalledTimes(2);
     } finally {
       off();
-      delete root.dataset.pluginTheme;
+      if (previous) root.style.setProperty("--accent", previous);
+      else root.style.removeProperty("--accent");
     }
   });
 

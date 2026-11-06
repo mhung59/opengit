@@ -11,6 +11,8 @@ jobs:
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm check:unused
       - run: pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
@@ -35,4 +37,4 @@ jobs:
       - run: pnpm build
       - run: cargo fmt --all --check
       - run: cargo check -p opengit --locked
-      - run: cargo test -p ide-host --test git_edition --test vcs_roots --test vcs_encoding --locked
+      - run: cargo test -p ide-host --no-default-features --test git_edition --test vcs_roots --test vcs_encoding --locked

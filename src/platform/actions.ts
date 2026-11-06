@@ -16,9 +16,9 @@
  * English title stays searchable.
  */
 import { create } from "zustand";
-import { isProductAction } from "./product";
 import { evaluateWhen, getContext, type ContextKeys } from "./context";
 import { formatMessage, lookup, tx, useI18n } from "./i18n";
+import { isProductAction } from "./product";
 
 export interface ActionContext {
   ctx: ContextKeys;
@@ -142,20 +142,6 @@ export function actionToggled(action: Action | undefined): boolean | undefined {
   }
 }
 
-type ActionListener = (id: string, arg: unknown) => void;
-const listeners = new Set<ActionListener>();
-/** Actions running synchronously inside another action's `run`. */
-let nesting = 0;
-
-/**
- * Called before each action the user runs (keyboard, menus, Find Action), not
- * for the actions an action runs itself. Macro recording listens here.
- */
-export function onActionExecuted(listener: ActionListener): () => void {
-  listeners.add(listener);
-  return () => void listeners.delete(listener);
-}
-
 /** Runs an action if registered and enabled. Returns whether it ran. */
 export async function executeAction(id: string, arg?: unknown): Promise<boolean> {
   const action = getAction(id);
@@ -165,22 +151,8 @@ export async function executeAction(id: string, arg?: unknown): Promise<boolean>
   }
   const ctx = getContext();
   if (!isActionEnabled(action, ctx)) return false;
-  if (nesting === 0)
-    for (const l of listeners)
-      try {
-        l(id, arg);
-      } catch (e) {
-        console.error("action listener failed", e);
-      }
   try {
-    let pending: void | Promise<void>;
-    nesting++;
-    try {
-      pending = action.run({ ctx, arg });
-    } finally {
-      nesting--;
-    }
-    await pending;
+    await action.run({ ctx, arg });
   } catch (e) {
     console.error(`action ${id} failed`, e);
   }

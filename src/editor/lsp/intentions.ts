@@ -3,38 +3,25 @@
  * intentions popup (quick fixes first, preferred in bold), Optimize Imports and
  * Generate. Refactor This and the Refactor menu live in `@/editor/refactor`.
  */
-import { StateEffect, StateField, type Extension, type Text } from "@codemirror/state";
-import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
-import { forEachDiagnostic } from "@codemirror/lint";
-import { indentUnit } from "@codemirror/language";
-import { diff } from "@codemirror/merge";
-import { commands, isCancelled, type CodeAction } from "@/platform/ipc";
-import {
-  contributedIntentions,
-  contributedQuickFixes,
-  intentionProviders,
-  intentionsChanged,
-  whenSynced,
-} from "@/editor/api";
-import { shortcutLabel } from "@/platform/keymap";
-import { debounce, docOf, isUnavailable, lspRequest, reportLspError } from "./lsp";
-import { offsetsToRange } from "./positions";
-import { showHint } from "./hint";
-import { formatLines } from "./format";
-import { pythonMemberIntentions } from "./pythonMembers";
-import { caretAnchor, openPopup, type ListPopupItem, type ListPreview } from "./popupStore";
-import { editPreviewLines } from "./workspaceEdit";
-import { featureBackoff } from "./availability";
-import { iconNode } from "./iconMarkup";
-import { editorPrefs } from "@/platform/editorSettings";
-import { spellingIntentions } from "./spelling";
-import { inspectionsAt } from "./diagnostics";
-import { SPELLING_INSPECTION } from "@/platform/inspections";
-import { editInspectionSettings, intentionControls } from "@/platform/inspectionControls";
-import { runInteractiveCodeAction } from "./interactiveCommand";
+import { contributedIntentions, contributedQuickFixes, whenSynced } from "@/editor/api";
 import { tx } from "@/platform/i18n";
-
-const codeActionBackoff = featureBackoff();
+import { editInspectionSettings, intentionControls } from "@/platform/inspectionControls";
+import { SPELLING_INSPECTION } from "@/platform/inspections";
+import { commands, isCancelled, type CodeAction } from "@/platform/ipc";
+import { indentUnit } from "@codemirror/language";
+import { forEachDiagnostic } from "@codemirror/lint";
+import { diff } from "@codemirror/merge";
+import { type Text } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { inspectionsAt } from "./diagnostics";
+import { formatLines } from "./format";
+import { showHint } from "./hint";
+import { runInteractiveCodeAction } from "./interactiveCommand";
+import { docOf, isUnavailable, lspRequest, reportLspError } from "./lsp";
+import { caretAnchor, openPopup, type ListPopupItem, type ListPreview } from "./popupStore";
+import { offsetsToRange } from "./positions";
+import { spellingIntentions } from "./spelling";
+import { editPreviewLines } from "./workspaceEdit";
 
 const isQuickFix = (a: CodeAction) => !!a.kind && (a.kind === "quickfix" || a.kind.startsWith("quickfix."));
 
@@ -513,87 +500,6 @@ export function lightsBulb(a: CodeAction): boolean {
   return !kind || kind === "quickassist" || /^(quickfix|refactor)(\.|$)/.test(kind);
 }
 
-interface Bulb {
-  line: number;
-  quickFix: boolean;
-}
-
-const setBulb = StateEffect.define<Bulb | null>();
-
-const bulbField = StateField.define<Bulb | null>({
-  create: () => null,
-  update(value, tr) {
-    for (const e of tr.effects) if (e.is(setBulb)) return e.value;
-    if (value && (tr.docChanged || tr.selection)) {
-      const line = tr.state.doc.lineAt(tr.state.selection.main.head).number;
-      return line === value.line && !tr.docChanged ? value : null;
-    }
-    return value;
-  },
-});
-
-const bulbPlugin = ViewPlugin.fromClass(
-  class {
-    private lookup = debounce(() => void this.run(), 500);
-    constructor(private view: EditorView) {
-      this.lookup();
-    }
-    update(u: ViewUpdate) {
-      if (
-        u.docChanged ||
-        u.selectionSet ||
-        (u.focusChanged && u.view.hasFocus) ||
-        u.transactions.some((tr) => tr.effects.some((e) => e.is(intentionsChanged)))
-      )
-        this.lookup();
-      else if (u.focusChanged) {
-        this.lookup.cancel();
-        // A blur dispatched from inside the update is not allowed.
-        queueMicrotask(() => {
-          if (!this.view.hasFocus && this.view.state.field(bulbField, false))
-            this.view.dispatch({ effects: setBulb.of(null) });
-        });
-      }
-    }
-    async run() {
-      const doc = docOf(this.view);
-      // As in IDEA, only the focused editor shows the bulb.
-      if (!doc || doc.readOnly || !this.view.dom.isConnected || !this.view.hasFocus) return;
-      const state = this.view.state;
-      const typoFix = spellingIntentions(this.view).length > 0;
-      const selection = state.selection.main;
-      const ownFix = contributedQuickFixes(this.view, selection.from, selection.to).length > 0;
-      const local = typoFix || ownFix || contributedIntentions(this.view).length > 0;
-      const backoff = codeActionBackoff.active(doc.doc);
-      let actions: CodeAction[] = [];
-      if (!backoff) {
-        try {
-          actions = await fetchIntentions(this.view);
-        } catch (e) {
-          if (isUnavailable(e)) codeActionBackoff.mark(doc.doc);
-        }
-      }
-      if (this.view.state.doc !== state.doc || !this.view.state.selection.eq(state.selection) || !this.view.hasFocus)
-        return;
-      const line = state.doc.lineAt(state.selection.main.head).number;
-      const any = actions.some(lightsBulb) || local;
-      this.view.dispatch({
-        effects: setBulb.of(
-          any
-            ? {
-                line,
-                quickFix: (typoFix || ownFix || actions.some(isQuickFix)) && quickFixIcon(this.view) === "bulb-fix",
-              }
-            : null,
-        ),
-      });
-    }
-    destroy() {
-      this.lookup.cancel();
-    }
-  },
-);
-
 /**
  * New-UI bulb: floats at the start of the text on the caret line, or on the
  * line below / above when the caret line's text starts at the left edge; in
@@ -610,79 +516,4 @@ export function bulbLine(state: EditorView["state"], line: number): { line: numb
   };
   for (const n of [line, line + 1, line - 1]) if (free(n)) return { line: n, gutter: false };
   return { line, gutter: true };
-}
-
-class FloatingBulb {
-  dom: HTMLElement;
-  private shown: Bulb | null = null;
-
-  constructor(private view: EditorView) {
-    this.dom = document.createElement("span");
-    this.dom.className = "cm-lsp-bulb";
-    this.dom.setAttribute("role", "button");
-    this.dom.setAttribute("aria-label", "Show intentions");
-    this.dom.style.display = "none";
-    this.dom.appendChild(iconNode("bulb", 16));
-    this.dom.appendChild(iconNode("bulb-fix", 16, "cm-lsp-bulb-fix-icon"));
-    this.dom.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      void showIntentions(this.view);
-    });
-    view.scrollDOM.appendChild(this.dom);
-    this.place();
-  }
-
-  update(u: ViewUpdate) {
-    const bulb = u.state.field(bulbField, false) ?? null;
-    if (bulb !== this.shown || u.geometryChanged || u.viewportChanged) this.place();
-  }
-
-  private place() {
-    const bulb = this.view.state.field(bulbField, false) ?? null;
-    this.shown = bulb;
-    if (!bulb || bulb.line > this.view.state.doc.lines || !editorPrefs().appearance.intentionBulb) {
-      this.dom.style.display = "none";
-      return;
-    }
-    const keys = shortcutLabel("code.showIntentions");
-    this.dom.title = `Show intentions${keys ? ` (${keys})` : ""}`;
-    this.dom.classList.toggle("cm-lsp-bulb-fix", bulb.quickFix);
-    this.view.requestMeasure({
-      key: this,
-      read: (view) => {
-        const at = bulbLine(view.state, bulb.line);
-        const line = view.state.doc.line(at.line);
-        const content = view.contentDOM.getBoundingClientRect();
-        const scroller = view.scrollDOM.getBoundingClientRect();
-        // The text row: the line's block also holds inline widgets above it (code vision).
-        const coords = view.coordsAtPos(line.from, 1);
-        const block = view.lineBlockAt(line.from);
-        const textTop = coords ? coords.top - scroller.top : block.top + view.documentTop - scroller.top;
-        return {
-          top: textTop + view.scrollDOM.scrollTop,
-          left: content.left - scroller.left + view.scrollDOM.scrollLeft + (at.gutter ? -20 : 4),
-          height: coords ? coords.bottom - coords.top : block.height,
-          gutter: at.gutter,
-        };
-      },
-      write: ({ top, left, height, gutter }) => {
-        this.dom.style.display = "";
-        this.dom.classList.toggle("cm-lsp-bulb-gutter", gutter);
-        this.dom.style.top = `${top}px`;
-        this.dom.style.left = `${left}px`;
-        this.dom.style.height = `${Math.min(height, this.view.defaultLineHeight)}px`;
-      },
-    });
-  }
-
-  destroy() {
-    this.dom.remove();
-  }
-}
-
-const floatingBulb = ViewPlugin.fromClass(FloatingBulb);
-
-export function intentionsExtension(): Extension {
-  return [bulbField, bulbPlugin, floatingBulb, intentionProviders.of(pythonMemberIntentions)];
 }

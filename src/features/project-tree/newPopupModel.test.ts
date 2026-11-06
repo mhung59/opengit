@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executeAction, registerActions } from "@/platform/actions";
 import { useProject } from "@/platform/project";
 import type { MenuItem } from "@/ui";
 import { registerMenuGroup } from "@/workbench/contributions";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { newMenuItems } from "./contextMenu";
 import { closeNewPopup, newPopupRows, openNewPopup, useNewPopup } from "./newPopupModel";
 import { useProjectTree } from "./store";
@@ -64,15 +64,7 @@ afterEach(() => {
 
 describe("New popup", () => {
   it("lists File, Directory and the contributed file kinds", () => {
-    expect(labels(newMenuItems(`${ROOT}/src`))).toEqual([
-      "File",
-      "Directory",
-      "-",
-      "Python File",
-      "Stylesheet",
-      "-",
-      "HTTP Request",
-    ]);
+    expect(labels(newMenuItems(`${ROOT}/src`))).toEqual(["File", "Directory", "-", "Python File", "Stylesheet"]);
   });
 
   it("passes the target directory to contributed kinds", () => {
@@ -84,7 +76,7 @@ describe("New popup", () => {
     const items = newMenuItems(ROOT);
     expect(labels(items, "py")).toEqual(["Python File"]);
     expect(labels(items, "css")).toEqual(["Stylesheet"]);
-    expect(labels(items, "http")).toEqual(["HTTP Request"]);
+    expect(labels(items, "http")).toEqual([]);
     expect(labels(items, "zzz")).toEqual([]);
     expect(newPopupRows(items, "py")[0]!.matches).toEqual([0, 1]);
   });

@@ -6,10 +6,6 @@
  * it shows keeps it. Requests are debounced and cancelled (RequestId) as typing
  * goes on; only servers advertising `inlineCompletionProvider` are asked.
  */
-import { completionStatus } from "@codemirror/autocomplete";
-import { EditorSelection, StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state";
-import { Decoration, EditorView, ViewPlugin, WidgetType, type ViewUpdate } from "@codemirror/view";
-import { registerActions, type Action } from "@/platform/actions";
 import { setContext } from "@/platform/context";
 import { editorPrefs } from "@/platform/editorSettings";
 import {
@@ -21,13 +17,13 @@ import {
   type Command,
   type InlineCompletionItem,
   type RequestId,
-  unavailableText,
 } from "@/platform/ipc";
-import { activeEditor } from "@/editor/api";
+import { completionStatus } from "@codemirror/autocomplete";
+import { EditorSelection, StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state";
+import { Decoration, EditorView, ViewPlugin, WidgetType, type ViewUpdate } from "@codemirror/view";
+import { featureBackoff } from "./availability";
 import { docOf, isUnavailable, lspRequest } from "./lsp";
 import { offsetToPos, rangeToOffsets } from "./positions";
-import { showHint } from "./hint";
-import { featureBackoff } from "./availability";
 
 /** A suggestion in document offsets: `text` replaces `[from, to)`. */
 export interface Suggestion {
@@ -282,46 +278,4 @@ export function cycleInline(view: EditorView, dir: 1 | -1): boolean {
   if (!view.state.field(ghostField, false)) return false;
   view.dispatch({ effects: cycleGhost.of(dir) });
   return true;
-}
-
-const VISIBLE = `editorTextFocus && ${CONTEXT_KEY}`;
-
-function onView(run: (view: EditorView) => unknown): Action["run"] {
-  return () => {
-    const view = activeEditor()?.view;
-    if (view) void run(view);
-  };
-}
-
-export function registerInlineCompletionActions(): () => void {
-  const shown = (id: string, title: string, run: (v: EditorView) => unknown): Action => ({
-    id,
-    title,
-    category: "Inline Completion",
-    when: VISIBLE,
-    run: onView(run),
-  });
-  return registerActions([
-    {
-      id: "editor.inlineCompletion.trigger",
-      title: "Call Inline Completion",
-      category: "Code",
-      when: "editorTextFocus",
-      keywords: ["ghost text", "inline suggestion"],
-      run: onView(async (v) => {
-        const doc = docOf(v);
-        if (!doc || !enabledFor(doc.language)) return showHint(v, "Inline completion is off for this language");
-        try {
-          if (!(await requestInline(v, false))) showHint(v, "No inline suggestions");
-        } catch (e) {
-          showHint(v, isUnavailable(e) ? unavailableText(e) : String(e));
-        }
-      }),
-    },
-    shown("editor.inlineCompletion.accept", "Insert Inline Proposal", (v) => acceptInline(v)),
-    shown("editor.inlineCompletion.acceptWord", "Insert Inline Proposal: Next Word", (v) => acceptInline(v, true)),
-    shown("editor.inlineCompletion.dismiss", "Hide Inline Proposal", dismissInline),
-    shown("editor.inlineCompletion.next", "Show Next Inline Proposal", (v) => cycleInline(v, 1)),
-    shown("editor.inlineCompletion.previous", "Show Previous Inline Proposal", (v) => cycleInline(v, -1)),
-  ]);
 }

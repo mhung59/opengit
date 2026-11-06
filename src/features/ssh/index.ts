@@ -1,7 +1,5 @@
 /**
- * SSH: credential prompts of `ssh` / `git` child processes (askpass) and
- * Tools › Start SSH Session. The configurations live in Settings › Tools ›
- * SSH Configurations.
+ * Credential prompts of `ssh` / `git` child processes (askpass).
  */
 import { onIdeEvent } from "@/platform/ipc";
 import { registerOverlay } from "@/workbench/contributions";

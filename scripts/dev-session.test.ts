@@ -47,7 +47,7 @@ describe("development worktrees", () => {
     } finally {
       await vite.close();
     }
-  });
+  }, 30_000);
 
   it("matches the Rust identity and separates paths, including Unicode", () => {
     expect(worktreeId("/repo/idea")).toBe("ai.l0ng.openidea.dev.w158e9c5954b7bf64");

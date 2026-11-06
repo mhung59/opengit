@@ -1,7 +1,7 @@
 [package]
 name = "opengit"
 description = "OpenGit desktop Git repository manager"
-version = "0.1.0"
+version = "0.1.1"
 edition.workspace = true
 license.workspace = true
 
@@ -46,26 +46,19 @@ ide-index.workspace = true
 ide-syntax.workspace = true
 ide-search.workspace = true
 ide-lsp.workspace = true
-ide-dap.workspace = true
 ide-vcs.workspace = true
 ide-terminal.workspace = true
 ide-run.workspace = true
 ide-sdk.workspace = true
 ide-build.workspace = true
-ide-analysis.workspace = true
-ide-coverage.workspace = true
-ide-profiler.workspace = true
 ide-http.workspace = true
 ide-web.workspace = true
 ide-spell.workspace = true
 ide-ssh.workspace = true
 ide-remote.workspace = true
 ide-host.workspace = true
-ide-notebook.workspace = true
 ide-jsonrpc.workspace = true
 ide-tools = { path = "../crates/ide-tools" }
-ide-docker = { path = "../crates/ide-docker" }
-ide-github = { path = "../crates/ide-github" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 block2 = "0.6"

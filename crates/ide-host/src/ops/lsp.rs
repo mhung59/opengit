@@ -270,11 +270,7 @@ pub fn lsp_resend_diagnostics(host: &Host, window: &str) -> IdeResult<()> {
 
 pub async fn lsp_restart(host: &Host, window: &str, server: ServerId) -> IdeResult<()> {
     let project = host.project(window)?;
-    let java = project.lsp.servers().iter().any(|s| s.id == server && s.name == "jdtls");
     project.lsp.restart(server).await?;
-    if java && let Some(bridge) = &project.kotlin_bridge {
-        bridge.schedule();
-    }
     Ok(())
 }
 

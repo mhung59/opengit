@@ -16,16 +16,6 @@ try {
   // A built-in palette theme (Solarized, One) over its light / dark base (tokens.css).
   if (typeof last?.colorTheme === "string" && /^[a-z][a-z0-9-]*$/.test(last.colorTheme))
     root.dataset.colorTheme = last.colorTheme;
-  // A plugin theme's stylesheet (plugins/bridge.ts), so the workbench doesn't
-  // show the built-in theme until the plugin host answers.
-  const plugin = JSON.parse(localStorage.getItem("openidea.pluginTheme") ?? "null");
-  if (typeof plugin?.id === "string" && typeof plugin.css === "string" && !/[<\\]|url\(/i.test(plugin.css)) {
-    addStyle("openidea-plugin-theme", plugin.css);
-    root.dataset.pluginTheme = plugin.id;
-    root.dataset.pluginThemeKind = root.dataset.theme = plugin.kind === "light" ? "light" : "dark";
-    delete root.dataset.contrast;
-    delete root.dataset.colorTheme;
-  }
   // The splash's frame, text and accent colours, resolved by theme.ts (splash.css).
   const colors = [
     ["--boot-frame", last?.frame],

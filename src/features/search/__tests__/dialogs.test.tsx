@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { registerAction } from "@/platform/actions";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SeDeps } from "../everywhere/controller";
 
 const defaultFindFiles: SeDeps["findFiles"] = async (q) =>
@@ -165,7 +165,7 @@ describe("Search Everywhere dialog", () => {
     await tick();
     const input = screen.getByLabelText("Search query");
     fireEvent.keyDown(input, { key: "Tab" });
-    expect(useSearchEverywhere.getState().tab).toBe("classes");
+    expect(useSearchEverywhere.getState().tab).toBe("files");
     fireEvent.keyDown(input, { key: "Tab", shiftKey: true });
     fireEvent.keyDown(input, { key: "Tab", shiftKey: true });
     expect(useSearchEverywhere.getState().tab).toBe("text");
@@ -342,38 +342,12 @@ describe("Search Everywhere multi-selection", () => {
     await tick();
     expect(selectedOptions()).toHaveLength(1);
   });
-
-  it.each(["classes", "symbols"] as const)("opens selected %s at their positions", async (tab) => {
-    findSymbols = async () =>
-      ["First", "Second"].map((name, line) => ({
-        name,
-        kind: tab === "classes" ? "class" : "function",
-        container: null,
-        path: `/p/${name}.ts`,
-        relPath: `${name}.ts`,
-        score: 1,
-        indices: [0],
-        range: { start: { line, col: 2 }, end: { line, col: 5 } },
-      }));
+  it.each(["classes", "symbols"] as const)("keeps the retired %s scope out of the Git edition", async (tab) => {
     render(<SearchEverywhereOverlay />);
     act(() => showSearchEverywhere(tab, { query: "s" }));
     await tick();
-    const input = screen.getByLabelText("Search query");
-    fireEvent.keyDown(input, { key: "ArrowDown", shiftKey: true });
-    fireEvent.keyDown(input, { key: "Enter" });
-    await tick();
-    expect(openLocation).toHaveBeenNthCalledWith(
-      1,
-      "/p/First.ts",
-      { line: 0, col: 2 },
-      expect.objectContaining({ preview: false }),
-    );
-    expect(openLocation).toHaveBeenNthCalledWith(
-      2,
-      "/p/Second.ts",
-      { line: 1, col: 2 },
-      expect.objectContaining({ preview: false }),
-    );
+    expect(screen.queryByRole("tab", { name: tab === "classes" ? "Classes" : "Symbols" })).toBeNull();
+    expect(openLocation).not.toHaveBeenCalled();
   });
 
   it("ignores actions and settings in a mixed selection even when the lead is an action", async () => {

@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTxTemplate } from "@/platform/i18n";
-import { EmptyState, IconButton, Toast, T } from "@/ui";
+import { EmptyState, T, Toast } from "@/ui";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import styles from "./Notifications.module.css";
 import {
   balloonTimeout,
   canSuppress,
-  clearNotifications,
   dismissBalloon,
   markAllNotificationsRead,
   removeNotification,
@@ -13,7 +13,6 @@ import {
   type IdeNotification,
 } from "./notificationStore";
 import { useToolWindowLayout } from "./toolwindows/store";
-import styles from "./Notifications.module.css";
 
 const MAX_BALLOONS = 3;
 
@@ -142,23 +141,4 @@ export function NotificationsToolWindow() {
       )}
     </div>
   );
-}
-
-export function NotificationsHeaderActions() {
-  const count = useNotifications((s) => s.items.filter((n) => n.logged).length);
-  return (
-    <IconButton
-      icon="trash"
-      title="Clear All"
-      size="small"
-      iconSize={16}
-      disabled={!count}
-      onClick={clearNotifications}
-    />
-  );
-}
-
-/** Unread count on the Notifications stripe button. */
-export function useUnreadNotifications(): number {
-  return useNotifications((s) => s.items.filter((n) => !n.read && n.logged).length);
 }

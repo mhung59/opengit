@@ -260,38 +260,6 @@ pub fn log_frontend(level: LogLevel, message: String) {
     }
 }
 
-#[tauri::command]
-#[specta::specta]
-pub fn project_trust_status(state: State<'_, AppState>, path: PathBuf) -> IdeResult<ide_host::trust::TrustStatus> {
-    state.trust.status(&path)
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn project_trust_list(state: State<'_, AppState>) -> IdeResult<ide_host::trust::TrustDecisions> {
-    state.trust.decisions()
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn project_trust_set(
-    state: State<'_, AppState>,
-    path: PathBuf,
-    trusted: bool,
-    folder: bool,
-) -> IdeResult<()> {
-    state.host.set_project_trust(&path, trusted, folder).await?;
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub async fn project_trust_remove_location(state: State<'_, AppState>, path: PathBuf) -> IdeResult<()> {
-    state.trust.remove_location(&path)?;
-    state.host.refresh_project_trust().await?;
-    Ok(())
-}
-
 /// Checks edited proxy settings without enabling the HTTP client tool window.
 #[tauri::command]
 #[specta::specta]

@@ -1,9 +1,9 @@
+import { validateSettings } from "@/features/settings/model/schema";
+import { applyThemeAttributes, resolveTheme, resolveThemeId } from "@/workbench/theme";
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
-import { BUILTIN_THEMES, isBuiltinTheme, themeKind } from "./themes";
 import { _setSchemeSource, effectiveScheme, schemeCss, schemeTokens, themeScheme } from "./colorScheme";
-import { applyThemeAttributes, resolveTheme, resolveThemeId } from "@/workbench/theme";
-import { validateSettings } from "@/features/settings/model/schema";
+import { BUILTIN_THEMES, isBuiltinTheme, themeKind } from "./themes";
 
 const css = readFileSync("src/styles/tokens.css", "utf8");
 _setSchemeSource(css);
@@ -55,13 +55,13 @@ describe("built-in palettes", () => {
     expect(schemeCss("theme-default", { "solarized-light": { keyword: { foreground: "#123456" } } })).toBe("");
   });
 
-  it("clears the palette for plugins and restores it when the plugin is removed", () => {
+  it("keeps built-in themes independent of legacy plugin attributes", () => {
     const root = document.documentElement;
     applyThemeAttributes("one-dark", root);
     root.dataset.pluginThemeKind = "light";
     applyThemeAttributes("one-dark", root);
-    expect(root.dataset.colorTheme).toBeUndefined();
-    expect(root.dataset.theme).toBe("light");
+    expect(root.dataset.colorTheme).toBe("one-dark");
+    expect(root.dataset.theme).toBe("dark");
     delete root.dataset.pluginThemeKind;
     applyThemeAttributes("one-dark", root);
     expect(root.dataset.colorTheme).toBe("one-dark");

@@ -48,6 +48,12 @@ impl TrustStore {
             && (decisions.projects.contains(&root) || decisions.locations.iter().any(|p| root.starts_with(p))))
     }
 
+    /// OpenGit follows normal Git execution without consulting IDE trust decisions.
+    /// The standalone IDE host enables `project-trust` through `ide-services`.
+    pub(crate) fn execution_allowed(&self, path: &Path) -> IdeResult<bool> {
+        if cfg!(feature = "project-trust") { self.trusted(path) } else { Ok(true) }
+    }
+
     pub fn decide(&self, path: &Path, trusted: bool, folder: bool) -> IdeResult<()> {
         let root = match dunce::canonicalize(path) {
             Ok(root) => root,
@@ -101,13 +107,10 @@ impl crate::Host {
 
     pub async fn refresh_project_trust(&self) -> IdeResult<()> {
         for project in self.projects().into_iter().filter(|p| !p.light) {
-            let trusted = self.trust.trusted(&project.root).unwrap_or(false);
+            let trusted = self.trust.execution_allowed(&project.root).unwrap_or(false);
             let previous = project.trusted.swap(trusted, std::sync::atomic::Ordering::AcqRel);
             if previous == trusted {
                 continue;
-            }
-            if let Some(bridge) = &project.kotlin_bridge {
-                bridge.schedule();
             }
             if !trusted {
                 project.lsp.set_execution_allowed(false);
@@ -118,8 +121,11 @@ impl crate::Host {
             } else {
                 self.environment.project_closed();
 
-                self.processes.kill_project(&project.root);
-                project.notebooks.restrict().await;
+                #[cfg(feature = "ide-services")]
+                {
+                    self.processes.kill_project(&project.root);
+                    project.notebooks.restrict().await;
+                }
                 let windows: Vec<_> = self
                     .projects
                     .read()
@@ -132,6 +138,7 @@ impl crate::Host {
                     for request in requests {
                         self.cancel_request(request);
                     }
+                    #[cfg(feature = "ide-services")]
                     self.debugger.stop_key(&window).await;
                 }
             }

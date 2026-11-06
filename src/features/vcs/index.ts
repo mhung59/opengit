@@ -3,8 +3,12 @@
  * editor change markers / annotations, Commit and Git tool windows, diff,
  * merge and Local History editors, remote operations.
  */
-import { onWorkflowSettingsChange, workflowSettings } from "@/platform/workflowSettings";
 import { editorsFor, registerEditorContribution } from "@/editor/api";
+import { executeAction } from "@/platform/actions";
+import { getContext } from "@/platform/context";
+import { tx } from "@/platform/i18n";
+import { onWorkflowSettingsChange, workflowSettings } from "@/platform/workflowSettings";
+import { lazyComponent } from "@/ui";
 import {
   notifications,
   registerEditorKind,
@@ -14,33 +18,29 @@ import {
   registerTitleItem,
   registerToolWindow,
 } from "@/workbench/contributions";
-import { executeAction } from "@/platform/actions";
-import { getContext } from "@/platform/context";
-import { lazyComponent } from "@/ui";
 import { registerVcsActions } from "./actions";
-import { installChangelists } from "./changelists";
-import { registerHistoryActions, trackOperationContext } from "./historyActions";
-import { registerLogPaneActions } from "./logPaneActions";
-import { controlLabel, controlOperation, inProgress } from "./operations";
 import { annotationsShown, blameSlot } from "./blame";
-import { inlineBlame } from "./inlineBlame";
 import { BranchWidget, useBranchesPopup } from "./BranchWidget";
-import { showConflictsDialog } from "./conflictsUi";
+import { installChangelists } from "./changelists";
+import { installPreparedMessage, useCommit } from "./commitStore";
 import { registerCompareActions } from "./compare";
-import { DIFF_KIND, diffTitle, type DiffData } from "./diffInput";
+import { installFileConfirmations } from "./confirmations";
+import { showConflictsDialog } from "./conflictsUi";
 import { VcsDialogHost } from "./dialogs";
+import { DIFF_KIND, diffTitle, type DiffData } from "./diffInput";
 import { changeMarkers } from "./gutter";
+import { registerHistoryActions, trackOperationContext } from "./historyActions";
 import { installHunkPopup } from "./HunkPopup";
-import { LOCAL_HISTORY_KIND } from "./localHistoryKind";
+import { installIncomingCheck } from "./incoming";
+import { inlineBlame } from "./inlineBlame";
 import { registerLocalHistoryActions } from "./localHistoryActions";
+import { LOCAL_HISTORY_KIND } from "./localHistoryKind";
+import { registerLogPaneActions } from "./logPaneActions";
+import { installGitLog, selectGitTab, useGitLog } from "./logStore";
 import { MERGE_KIND, type MergeData } from "./mergeKind";
 import { baseName } from "./model";
-import { installPreparedMessage, useCommit } from "./commitStore";
-import { installFileConfirmations } from "./confirmations";
-import { installIncomingCheck } from "./incoming";
-import { installGitLog, selectGitTab, useGitLog } from "./logStore";
+import { controlLabel, controlOperation, inProgress } from "./operations";
 import { installVcsStore, onConflictsAppeared, onConflictsCleared, useVcs } from "./store";
-import { tx } from "@/platform/i18n";
 
 function trackTitleItem(): () => void {
   let dispose: (() => void) | null = null;
@@ -83,7 +83,7 @@ function trackCommitWindow(): () => void {
         icon: "toolwindow-commit",
         anchor: "left",
         order: 1,
-        component: lazyComponent(() => import("./CommitView").then((m) => m.CommitToolWindow)),
+        component: lazyComponent(() => import("./CommitView").then((m) => m.CommitToolWindow), { preload: true }),
         headerContent: lazyComponent(() => import("./CommitView").then((m) => m.CommitTabs)),
         tabsReplaceTitle: true,
         useBadge: () => {
@@ -187,12 +187,12 @@ export function activate(): () => void {
       icon: "toolwindow-git",
       anchor: "bottom",
       order: 5,
-      component: lazyComponent(() => import("./GitLog").then((m) => m.GitToolWindow)),
+      component: lazyComponent(() => import("./GitLog").then((m) => m.GitToolWindow), { preload: true }),
       headerContent: lazyComponent(() => import("./GitLog").then((m) => m.GitTabs)),
     }),
     registerEditorKind({
       kind: DIFF_KIND,
-      component: lazyComponent(() => import("./DiffEditor").then((m) => m.DiffEditor)),
+      component: lazyComponent(() => import("./DiffEditor").then((m) => m.DiffEditor), { preload: true }),
       title: (input) => diffTitle(input.data as DiffData),
       icon: () => "diff",
     }),

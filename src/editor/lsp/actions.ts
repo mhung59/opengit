@@ -1,25 +1,22 @@
 /** Actions of the LSP editor layer (ids from keymaps/intellij-macos.ts). */
-import { isGenerateAction } from "./generate";
-import type { EditorView } from "@codemirror/view";
-import { executeAction, registerActions, type Action } from "@/platform/actions";
-import { activeEditor, editorsFor, registerSaveParticipant, type TextEditorHandle } from "@/editor/api";
-import { maybeEditorService } from "@/workbench/contributions";
-import { useProject } from "@/platform/project";
-import { validateLanguages } from "@/platform/languageSettings";
-import { explicitCompletion } from "./completion";
-import { triggerSignatureHelp } from "./signature";
-import { quickDefinition, quickDocumentation } from "./hover";
-import { expressionTypeInfo } from "./typeInfo";
-import { gotoHighlightedUsage, gotoTargets, highlightUsages } from "./navigation";
-import { gotoDiagnostic, showErrorDescription } from "./diagnostics";
-import { applyKindSilently, applyQuickFix, runKindAction, showIntentions } from "./intentions";
-import { implementPythonAbstractMethods } from "./pythonMembers";
-import { workflowSettings, type ActionsOnSaveValid } from "@/platform/workflowSettings";
-import { startRename } from "./rename";
-import { formatDocument, reformatDialog } from "./format";
-import { showHint } from "./hint";
+import { activeEditor, editorsFor, type TextEditorHandle } from "@/editor/api";
 import { refactorThis, runRefactoring, safeDelete, showNothingHere } from "@/editor/refactor";
+import { executeAction, registerActions, type Action } from "@/platform/actions";
 import { evaluateWhen } from "@/platform/context";
+import { maybeEditorService } from "@/workbench/contributions";
+import type { EditorView } from "@codemirror/view";
+import { explicitCompletion } from "./completion";
+import { gotoDiagnostic, showErrorDescription } from "./diagnostics";
+import { formatDocument, reformatDialog } from "./format";
+import { isGenerateAction } from "./generate";
+import { showHint } from "./hint";
+import { quickDefinition, quickDocumentation } from "./hover";
+import { applyKindSilently, applyQuickFix, runKindAction, showIntentions } from "./intentions";
+import { gotoHighlightedUsage, gotoTargets, highlightUsages } from "./navigation";
+import { implementPythonAbstractMethods } from "./pythonMembers";
+import { startRename } from "./rename";
+import { triggerSignatureHelp } from "./signature";
+import { expressionTypeInfo } from "./typeInfo";
 
 /** Editor actions apply to the active text editor unless a tool window or popup owns the keyboard. */
 export const EDITOR_WHEN = "textEditorActive && (editorFocus || popupOpen || !toolWindowFocus)";
@@ -115,43 +112,6 @@ function editorAction(
   extra: Partial<Action> = {},
 ): Action {
   return { id, title, category, when: EDITOR_WHEN, run: withEditor(run), ...extra };
-}
-
-/** Format on save (settings.editor.formatOnSave), run by editor/core before writing. */
-export function registerFormatOnSave(): () => void {
-  return registerSaveParticipant({
-    id: "lsp.formatOnSave",
-    order: 50,
-    beforeSave: async (ctx, handle) => {
-      const settings = useProject.getState().settings;
-      const prettier = validateLanguages(settings?.languages).prettier;
-      if (
-        !handle ||
-        ctx.readOnly ||
-        (!settings?.editor?.formatOnSave && !(prettier.runOnSave && prettier.languages.includes(ctx.language)))
-      )
-        return;
-      await formatDocument(handle.view, { explicit: false, selectionOnly: false, onSave: true });
-    },
-  });
-}
-
-/** Settings › Tools › Actions on Save: optimize imports / code cleanup, before reformatting. */
-export function registerActionsOnSave(): () => void {
-  const participant = (id: string, order: number, kind: string, enabled: (s: ActionsOnSaveValid) => boolean) =>
-    registerSaveParticipant({
-      id,
-      order,
-      beforeSave: async (ctx, handle) => {
-        if (!handle || ctx.readOnly || !enabled(workflowSettings().actionsOnSave)) return;
-        await applyKindSilently(handle.view, kind);
-      },
-    });
-  const disposers = [
-    participant("lsp.organizeImportsOnSave", 40, "source.organizeImports", (s) => s.optimizeImports),
-    participant("lsp.cleanupOnSave", 45, "source.fixAll", (s) => s.cleanup),
-  ];
-  return () => disposers.forEach((d) => d());
 }
 
 export function registerLspActions(): () => void {

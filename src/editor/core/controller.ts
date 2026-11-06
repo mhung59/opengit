@@ -1,16 +1,42 @@
+import { gitMenu, localHistoryMenu, openInMenu } from "./editorMenus";
+import {
+  computeStatus,
+  EditorStatus,
+  fileInput,
+  fileKey,
+  isTextInput,
+  isTextTab,
+  LIGHT_EDIT_SESSION,
+  openFilePaths,
+  sameStatus,
+  tabIcon,
+  tabSortKey,
+  tabTitle,
+  useEditorStatus,
+  useFindBars,
+  useTabErrors,
+  useTabs,
+  virtualInput,
+} from "./tabState";
+export {
+  isTextInput,
+  openFilePaths,
+  tabIcon,
+  tabTitle,
+  useEditorStatus,
+  useFindBars,
+  useGotoLine,
+  useTabErrors,
+  useTabs,
+  virtualInput,
+  type EditorStatus,
+  type VirtualInputData,
+} from "./tabState";
 /**
  * Editor controller: tabs/splits store, editor slots, focus + context keys,
  * status, navigation history, autosave. The React views and actions talk to
  * this singleton; other features use the EditorService and editor/api.
  */
-import { pasteEditorClipboard } from "./cm/clipboard";
-import { EditorSelection } from "@codemirror/state";
-import { create } from "zustand";
-import { setContext } from "@/platform/context";
-import { shortcutLabel } from "@/platform/keymap";
-import { isSameOrInside } from "@/platform/paths";
-import { basename, useProject } from "@/platform/project";
-import { editorPrefs } from "@/platform/editorSettings";
 import {
   _emitEditorEvent,
   _provideNavigationHistory,
@@ -18,6 +44,18 @@ import {
   _setActiveEditor,
   type NavigationLocation,
 } from "@/editor/api";
+import { isClassFile } from "@/platform/classFiles";
+import { setContext } from "@/platform/context";
+import { editorPrefs } from "@/platform/editorSettings";
+import { t } from "@/platform/i18n";
+import type { VirtualDocument } from "@/platform/ipc";
+import { call, commands } from "@/platform/ipc";
+import { shortcutLabel } from "@/platform/keymap";
+import { isSameOrInside } from "@/platform/paths";
+import { basename, useProject } from "@/platform/project";
+import { isRemoteWindow } from "@/platform/remote";
+import { isVirtualUri, virtualDocument } from "@/platform/virtualDocs";
+import { showContextMenu, type MenuItem } from "@/ui";
 import {
   getFileDecoration,
   menuGroupItems,
@@ -26,17 +64,31 @@ import {
   useContributions,
   type EditorCloseSession,
   type EditorInput,
-  type OpenOptions,
   type FileEditorResolution,
   type OpenEditorTab,
+  type OpenOptions,
 } from "@/workbench/contributions";
 import { useDistractionFree } from "@/workbench/distractionFree";
 import { ask } from "@/workbench/messages";
-import { t } from "@/platform/i18n";
-import { call, commands } from "@/platform/ipc";
-import { isRemoteWindow } from "@/platform/remote";
-import { fileIconName, showContextMenu, type MenuItem } from "@/ui";
-import { usePlatform } from "@/platform/platformInfo";
+import { EditorSelection } from "@codemirror/state";
+import { docBackend, type DocBackend } from "./backend";
+import { pasteEditorClipboard } from "./cm/clipboard";
+import { installDiskSync } from "./diskSync";
+import {
+  closedDocuments,
+  combinedError,
+  customDocuments,
+  documentDirty,
+  documentLifecycle,
+  failures,
+  inputDirty,
+  type CustomDocument,
+} from "./model/customDocuments";
+import { DocumentManager, useDocMeta } from "./model/document";
+import { EditHistory } from "./model/editHistory";
+import { NavigationHistory } from "./model/navHistory";
+import { loadSession, restoreTabsState, serializeSession, storeSession, type FileViewState } from "./model/session";
+import { EditorSlot, type SlotHost } from "./model/slot";
 import {
   activateTab,
   changeSplitOrientation,
@@ -62,8 +114,8 @@ import {
   removePane,
   reopenClosed,
   setActivePane,
-  splitAtEdge,
   sortTabs,
+  splitAtEdge,
   splitPane,
   tabOptions,
   togglePin,
@@ -72,104 +124,7 @@ import {
   type Tab,
   type TabsState,
 } from "./model/tabs";
-import { DocumentManager, useDocMeta } from "./model/document";
-import { installDiskSync } from "./diskSync";
-import {
-  closedDocuments,
-  combinedError,
-  customDocuments,
-  documentDirty,
-  documentLifecycle,
-  failures,
-  inputDirty,
-  type CustomDocument,
-} from "./model/customDocuments";
-import { EditorSlot, type SlotHost } from "./model/slot";
-import { NavigationHistory } from "./model/navHistory";
-import { EditHistory } from "./model/editHistory";
-import { loadSession, restoreTabsState, serializeSession, storeSession, type FileViewState } from "./model/session";
-import { docBackend, type DocBackend } from "./backend";
-import { isClassFile } from "@/platform/classFiles";
-import { isVirtualUri, virtualDocument } from "@/platform/virtualDocs";
-import type { VirtualDocument } from "@/platform/ipc";
 import type { Scheduler } from "./sync/DocSync";
-
-export const fileKey = (path: string) => `file:${path}`;
-export const fileInput = (path: string): EditorInput => ({ kind: "file", key: fileKey(path), path });
-
-/** `data` of a `virtual` editor input: what the tab and its notice show. */
-export interface VirtualInputData {
-  title: string;
-  description: string | null;
-  decompiled: boolean;
-}
-
-export const virtualKey = (uri: string) => `virtual:${uri}`;
-/**
- * A read-only virtual document (library class from a language server). Its
- * `path` is the URI, which also identifies its document model.
- */
-export const virtualInput = (
-  vd: Pick<VirtualDocument, "uri" | "title" | "description" | "decompiled">,
-): EditorInput => ({
-  kind: "virtual",
-  key: virtualKey(vd.uri),
-  path: vd.uri,
-  data: { title: vd.title, description: vd.description, decompiled: vd.decompiled } satisfies VirtualInputData,
-});
-
-/** Inputs shown in the text editor: files and virtual documents. */
-export function isTextInput(input: EditorInput): input is EditorInput & { path: string } {
-  return (input.kind === "file" || input.kind === "virtual") && !!input.path;
-}
-
-export const useTabs = create<TabsState>(() => initialTabsState());
-
-/** Session key of the LightEdit window: its tabs reopen the next time a window switches to LightEdit. */
-export const LIGHT_EDIT_SESSION = "<lightEdit>";
-
-export interface EditorStatus {
-  path: string;
-  doc: number;
-  /** 0-based */
-  line: number;
-  col: number;
-  offset: number;
-  selectedChars: number;
-  selectedLines: number;
-  carets: number;
-}
-
-export const useEditorStatus = create<{ status: EditorStatus | null }>(() => ({ status: null }));
-/** Per-tab open errors (file missing, too large…). */
-export const useTabErrors = create<Record<string, string>>(() => ({}));
-/** Per-pane find bar state (open / replace mode); the bar keeps its own query. */
-export const useFindBars = create<Record<string, { replace: boolean; seq: number } | undefined>>(() => ({}));
-export const useGotoLine = create<{ open: boolean }>(() => ({ open: false }));
-
-/** Paths of open file tabs, all panes in visual order, unique. */
-export function openFilePaths(s: TabsState): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const id of paneIds(s))
-    for (const t of s.panes[id]?.tabs ?? [])
-      if (t.input.kind === "file" && t.input.path && !seen.has(t.input.path)) {
-        seen.add(t.input.path);
-        out.push(t.input.path);
-      }
-  return out;
-}
-
-/** Editor Tabs › Sort tabs alphabetically: by file name. */
-function tabSortKey(input: EditorInput): string {
-  return basename(input.path ?? input.key);
-}
-
-function isTextTab(tab: Tab | null | undefined): tab is Tab & { input: { path: string } } {
-  return !!tab && isTextInput(tab.input);
-}
-
-type EditorKinds = ReturnType<typeof useContributions.getState>["editorKinds"];
 
 interface OpenRequest {
   project: number;
@@ -177,30 +132,6 @@ interface OpenRequest {
   sequence: number;
   activation: number;
   pane: string;
-}
-
-/** Tab title of an editor input: the file name, or what its editor kind calls it. */
-export function tabTitle(input: EditorInput, kinds: EditorKinds): string {
-  if (input.kind === "file") return basename(input.path ?? input.key);
-  if (input.kind === "virtual")
-    return (input.data as VirtualInputData | undefined)?.title ?? basename(input.path ?? input.key);
-  const kind = kinds.get(input.kind);
-  try {
-    return kind?.title(input) ?? input.key;
-  } catch {
-    return input.key;
-  }
-}
-
-export function tabIcon(input: EditorInput, kinds: EditorKinds): string {
-  if (input.kind === "file") return fileIconName(basename(input.path ?? ""));
-  if (input.kind === "virtual") return fileIconName(tabTitle(input, kinds));
-  const kind = kinds.get(input.kind);
-  try {
-    return kind?.icon?.(input) ?? "file";
-  } catch {
-    return "file";
-  }
 }
 
 export class EditorController implements SlotHost {
@@ -1784,98 +1715,8 @@ export class EditorController implements SlotHost {
   }
 }
 
-/** Open In › for a file: Project View, Finder / Explorer / Files, Terminal. */
-function openInMenu(path: string): MenuItem {
-  return {
-    label: "Open In",
-    submenu: [
-      { kind: "action", action: "navigate.selectIn", arg: { path }, label: "Project View" },
-      { kind: "action", action: "project.revealInFinder", arg: path, label: revealLabel() },
-      { kind: "action", action: "project.openInTerminal", arg: path, label: "Terminal" },
-      { kind: "separator" },
-      ...menuGroupItems("openIn", { paths: [path] }),
-    ],
-  };
-}
-
-function localHistoryMenu(path: string): MenuItem {
-  return {
-    label: "Local History",
-    submenu: [
-      { kind: "action", action: "vcs.localHistory", arg: { path }, label: "Show History" },
-      { kind: "action", action: "localHistory.putLabel", label: "Put Label…" },
-    ],
-  };
-}
-
-/** Git › for one file (editor and editor tab menus). */
-function gitMenu(path: string): MenuItem {
-  return {
-    label: "Git",
-    submenu: [
-      { kind: "action", action: "vcs.commit", label: "Commit File…" },
-      { kind: "action", action: "vcs.addToVcs", arg: [path], label: "Add" },
-      { kind: "separator" },
-      { kind: "action", action: "vcs.annotate", arg: path, label: "Annotate with Git Blame" },
-      { kind: "action", action: "vcs.showDiff", arg: [path], label: "Show Diff" },
-      { kind: "action", action: "vcs.compareWithBranch", arg: { path }, label: "Compare with Branch…" },
-      { kind: "action", action: "vcs.showHistory", arg: [path], label: "Show History" },
-      { kind: "action", action: "vcs.rollback", arg: [path], label: "Rollback…" },
-      { kind: "separator" },
-      { kind: "action", action: "vcs.push", label: "Push…" },
-      { kind: "action", action: "vcs.update", label: "Pull…" },
-      { kind: "action", action: "vcs.fetch", label: "Fetch" },
-      { kind: "separator" },
-      { kind: "action", action: "vcs.branches", label: "Branches…" },
-    ],
-  };
-}
-
-function sameStatus(a: EditorStatus, b: EditorStatus): boolean {
-  return (
-    a.path === b.path &&
-    a.doc === b.doc &&
-    a.offset === b.offset &&
-    a.line === b.line &&
-    a.col === b.col &&
-    a.selectedChars === b.selectedChars &&
-    a.selectedLines === b.selectedLines &&
-    a.carets === b.carets
-  );
-}
-
-/** Status bar caret / selection info derived from the slot's latest state. */
-export function computeStatus(slot: EditorSlot): EditorStatus {
-  const state = slot.currentState();
-  const main = state.selection.main;
-  const line = state.doc.lineAt(main.head);
-  let chars = 0;
-  let lines = 0;
-  for (const r of state.selection.ranges) {
-    chars += r.to - r.from;
-    if (!r.empty) lines += state.doc.lineAt(r.to).number - state.doc.lineAt(r.from).number;
-  }
-  const status: EditorStatus = {
-    path: slot.model.path,
-    doc: slot.model.doc,
-    line: line.number - 1,
-    col: main.head - line.from,
-    offset: main.head,
-    selectedChars: chars,
-    selectedLines: lines,
-    carets: state.selection.ranges.length,
-  };
-  return status;
-}
-
 let controller: EditorController | null = null;
 
 export function editorController(): EditorController {
   return (controller ??= new EditorController());
-}
-
-/** "Finder" / "Explorer" / "Files", like IDEA's Open In submenu. */
-function revealLabel(): string {
-  const os = usePlatform.getState().os;
-  return os === "macos" ? "Finder" : os === "windows" ? "Explorer" : "Files";
 }

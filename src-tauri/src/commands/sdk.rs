@@ -2,8 +2,6 @@
 
 use crate::state::AppState;
 use ide_core::{IdeResult, RequestId};
-#[allow(unused_imports)]
-pub use ide_host::ops::sdk::*;
 use ide_sdk::python::PythonPackage;
 use ide_sdk::{Sdk, SdkKind};
 use std::path::PathBuf;
@@ -22,28 +20,6 @@ pub async fn sdk_detect(window: Window, state: State<'_, AppState>, kind: SdkKin
 #[specta::specta]
 pub fn sdk_python_effective(window: Window, state: State<'_, AppState>) -> IdeResult<Option<ide_core::IpcPath>> {
     ide_host::ops::sdk::sdk_python_effective(&state.host, window.label())
-}
-
-/// SDK / library source folders shown under "External Libraries" in the Project view,
-/// with the Maven / Gradle dependency jars of the build model.
-#[tauri::command]
-#[specta::specta]
-pub async fn sdk_project_libraries(
-    window: Window,
-    state: State<'_, AppState>,
-) -> IdeResult<Vec<ide_sdk::libraries::LibraryGroup>> {
-    ide_host::ops::sdk::sdk_project_libraries(&state.host, window.label()).await
-}
-
-/// Looks up `names` (bare command names): `node_modules/.bin` above `near`, then the search path.
-#[tauri::command]
-#[specta::specta]
-pub async fn sdk_locate_tools(
-    state: State<'_, AppState>,
-    names: Vec<String>,
-    near: Option<PathBuf>,
-) -> IdeResult<LocatedTools> {
-    ide_host::ops::sdk::sdk_locate_tools(&state.host, "", names, near).await
 }
 
 /// `base -m venv location`; output lines stream through `on_output`.

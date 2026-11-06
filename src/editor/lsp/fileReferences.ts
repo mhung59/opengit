@@ -6,20 +6,15 @@
  * Paths resolve in the backend like IDEA's file references: relative to the
  * file, `/…` against the project root and its resource roots.
  */
+import { call, commands, isTauri, type PathCompletion } from "@/platform/ipc";
+import { fileIconName, folderIconName } from "@/ui";
 import {
   startCompletion,
   type Completion,
   type CompletionContext,
   type CompletionResult,
 } from "@codemirror/autocomplete";
-import type { Extension } from "@codemirror/state";
-import { EditorView, ViewPlugin } from "@codemirror/view";
-import { whenSynced } from "@/editor/api";
-import { call, commands, isTauri, onIdeEvent, type PathCompletion } from "@/platform/ipc";
-import { fileIconName, folderIconName } from "@/ui";
-import { setFileDiagnostics } from "./diagnostics";
-import { docOf, lspDoc } from "./lsp";
-import { tx } from "@/platform/i18n";
+import { lspDoc } from "./lsp";
 
 // --- completion ---------------------------------------------------------------
 
@@ -100,60 +95,4 @@ export async function pathCompletionSource(ctx: CompletionContext): Promise<Comp
     options: entries.map(option),
     validFor: /^[^/"'`)\s?#]*$/,
   };
-}
-
-// --- unresolved references --------------------------------------------------
-
-const WEB_LANGUAGES = new Set(["html", "css", "scss", "less", "vue", "svelte"]);
-const SOURCE = "file-references";
-const INSPECT_DELAY = 600;
-
-/** Warns about HTML / CSS paths that name no file; re-checked on edits and file-system changes. */
-export function unresolvedReferences(): Extension {
-  return ViewPlugin.define((view: EditorView) => {
-    const doc = docOf(view);
-    if (!doc || doc.virtual || !WEB_LANGUAGES.has(doc.language) || !isTauri()) return {};
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let seq = 0;
-    const run = async () => {
-      const mine = ++seq;
-      try {
-        await whenSynced(view);
-        const refs = await call(commands.webUnresolvedReferences(doc.doc));
-        if (mine !== seq) return;
-        setFileDiagnostics(
-          doc.path,
-          SOURCE,
-          refs.map((r) => ({
-            range: r.range,
-            severity: "warning",
-            message: tx`Cannot resolve file '${r.value}'`,
-            source: doc.language === "html" || doc.language === "vue" || doc.language === "svelte" ? "HTML" : "CSS",
-            code: null,
-          })),
-        );
-      } catch (e) {
-        console.debug("[file references]", e);
-      }
-    };
-    const schedule = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => void run(), INSPECT_DELAY);
-    };
-    schedule();
-    const offFs = onIdeEvent("fsChanged", (e) => {
-      if (e.created.length || e.removed.length) schedule();
-    });
-    return {
-      update: (u) => {
-        if (u.docChanged) schedule();
-      },
-      destroy: () => {
-        clearTimeout(timer);
-        offFs();
-        seq++;
-        setFileDiagnostics(doc.path, SOURCE, []);
-      },
-    };
-  });
 }

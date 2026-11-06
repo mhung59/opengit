@@ -4,12 +4,12 @@
  * editor, shortcut conflicts the keymap dispatcher respects, and the
  * `~/.ideavimrc` subset. The Vim engine loads only once Vim mode is on.
  */
+import { registerEditorContribution } from "@/editor/api";
 import { executeAction, registerActions } from "@/platform/actions";
 import { setContext } from "@/platform/context";
 import { registerKeyClaim } from "@/platform/keymap";
-import { registerEditorContribution } from "@/editor/api";
-import { registerSettingsPage, registerStatusItem, showStatusInfo } from "@/workbench/contributions";
 import { lazyComponent } from "@/ui";
+import { registerSettingsPage, registerStatusItem, showStatusInfo } from "@/workbench/contributions";
 import { vimKeyClaim } from "./conflicts";
 import { loadRcFile } from "./rcFile";
 import { setVimEnabled, syncVimSettingsFromStorage, useVimSettings } from "./settings";
@@ -90,7 +90,7 @@ export function activate(): () => void {
         id: "vim.toggle",
         title: "Vim",
         description: "Turn Vim emulation on or off in all editors",
-        category: "Tools",
+        category: "Edit",
         keywords: ["vim", "ideavim", "emulator", "toggle vim mode"],
         toggled: () => useVimSettings.getState().enabled,
         run: () => setVimEnabled(!useVimSettings.getState().enabled),
@@ -98,7 +98,7 @@ export function activate(): () => void {
       {
         id: "vim.reloadRc",
         title: "Reload .ideavimrc",
-        category: "Tools",
+        category: "Edit",
         keywords: ["vim", "vimrc", "openideavimrc"],
         when: "vimMode",
         run: () => reloadRc(false),
@@ -106,7 +106,7 @@ export function activate(): () => void {
       {
         id: "vim.settings",
         title: "Vim Settings…",
-        category: "Tools",
+        category: "Edit",
         keywords: ["vim", "shortcut conflicts"],
         run: () => void executeAction("file.settings", VIM_SETTINGS_PAGE),
       },

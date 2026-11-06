@@ -1,11 +1,11 @@
 /** Applies `data-theme` and the accent colour from appearance settings. */
-import { useEffect, useSyncExternalStore } from "react";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { create } from "zustand";
+import { resolveTokenColor, toHex } from "@/platform/cssColor";
 import { call, commands, isTauri } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
 import { BUILTIN_THEMES, isBuiltinTheme, themeKind, type BuiltinThemeId } from "@/platform/themes";
-import { resolveTokenColor, toHex } from "@/platform/cssColor";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { useEffect, useSyncExternalStore } from "react";
+import { create } from "zustand";
 
 export type ThemeSetting = BuiltinThemeId | "system";
 /** PyCharm's brand blue: the accent both Islands themes ship with. */
@@ -84,17 +84,9 @@ export function useApplyTheme() {
 
 /**
  * Sets `data-theme` / `data-contrast` / `data-color-theme` (the palette themes
- * over a light / dark base, tokens.css) for a built-in theme id. While a plugin
- * theme is active (`data-plugin-theme-kind`), its light / dark base wins.
+ * over a light / dark base, tokens.css) for a built-in theme id.
  */
 export function applyThemeAttributes(id: BuiltinThemeId, root: HTMLElement = document.documentElement) {
-  const pluginKind = root.dataset.pluginThemeKind;
-  if (pluginKind === "light" || pluginKind === "dark") {
-    delete root.dataset.colorTheme;
-    root.dataset.theme = pluginKind;
-    delete root.dataset.contrast;
-    return;
-  }
   if (id === "light" || id === "dark" || id === "dark-hc") delete root.dataset.colorTheme;
   else root.dataset.colorTheme = id;
   root.dataset.theme = themeKind(id);

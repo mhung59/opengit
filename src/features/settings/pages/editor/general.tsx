@@ -5,18 +5,17 @@
  * Editing and Inlay Hints. Every option is read by `editor/core` or
  * `editor/lsp` through `platform/editorSettings`.
  */
-import { useEffect, useId, useState } from "react";
-import clsx from "clsx";
+import { tx } from "@/platform/i18n";
 import { commands, isTauri } from "@/platform/ipc";
 import { Checkbox } from "@/ui";
+import clsx from "clsx";
+import { useEffect, useId, useState } from "react";
 import { SearchLabel, Select } from "../../components/Form";
 import { useLabelMatch, useSetting } from "../../components/context";
-import { editorPage, type Item } from "./kit";
 import styles from "./Editor.module.css";
-import { tx } from "@/platform/i18n";
+import { editorPage } from "./kit";
 
 const P = "editor";
-const ms = (key: string, max = 5000) => ({ kind: "number" as const, key, min: 0, max, unit: "ms" });
 
 /** Language names for per-language lists (Breadcrumbs, Inlay Hints). */
 export function useLanguages(): Array<{ id: string; name: string }> {
@@ -74,18 +73,6 @@ function LanguageChecks({ k, label, disabled }: { k: string; label: string; disa
 function BreadcrumbLanguages() {
   const [show] = useSetting<boolean>(`${P}.breadcrumbs.show`);
   return <LanguageChecks k={`${P}.breadcrumbs.disabledLanguages`} label="Show breadcrumbs for:" disabled={!show} />;
-}
-
-function InlayLanguages() {
-  const [on] = useSetting<boolean>(`${P}.inlayHints`);
-  return <LanguageChecks k={`${P}.inlay.disabledLanguages`} label="Show inlay hints for:" disabled={!on} />;
-}
-
-function InlineCompletionLanguages() {
-  const [on] = useSetting<boolean>(`${P}.inlineCompletion.enabled`);
-  return (
-    <LanguageChecks k={`${P}.inlineCompletion.disabledLanguages`} label="Show inline completion for:" disabled={!on} />
-  );
 }
 
 const GENERAL = editorPage({
@@ -193,31 +180,6 @@ const GENERAL = editorPage({
   ],
 });
 
-export const AUTO_IMPORT = editorPage({
-  id: "editor.general.autoImport",
-  title: "Auto Import",
-  order: 0,
-  keywords: ["import", "organize imports", "unambiguous"],
-  sections: [
-    {
-      items: [
-        {
-          t: "check",
-          key: `${P}.autoImport.addUnambiguous`,
-          label: "Add unambiguous imports on the fly",
-          hint: "Applies the import quick fix of an unresolved reference when the language server offers exactly one.",
-        },
-        {
-          t: "check",
-          key: `${P}.autoImport.optimizeOnTheFly`,
-          label: "Optimize imports on the fly",
-          hint: "Runs Optimize Imports when the file has no errors, unless it would change the caret line.",
-        },
-      ],
-    },
-  ],
-});
-
 const APPEARANCE = editorPage({
   id: "editor.general.appearance",
   title: "Appearance",
@@ -304,79 +266,6 @@ const BREADCRUMBS = editorPage({
           ],
         },
         { t: "custom", label: "Show breadcrumbs for:", keywords: ["languages"], component: BreadcrumbLanguages },
-      ],
-    },
-  ],
-});
-
-export const COMPLETION = editorPage({
-  id: "editor.general.codeCompletion",
-  title: "Code Completion",
-  order: 3,
-  keywords: ["autocomplete", "suggestions", "case sensitive", "parameter info", "popup", "sort", "parentheses"],
-  sections: [
-    {
-      items: [
-        {
-          t: "check",
-          key: `${P}.completion.matchCase`,
-          label: "Match case:",
-          inline: {
-            kind: "select",
-            key: `${P}.completion.caseSensitivity`,
-            options: [
-              { value: "first", label: "First letter only" },
-              { value: "all", label: "All letters" },
-            ],
-          },
-        },
-        {
-          t: "check",
-          key: `${P}.completion.autoInsertSingle`,
-          label: "Automatically insert single suggestions",
-          hint: "When Basic Completion (⌃Space) finds only one suggestion.",
-        },
-        {
-          t: "check",
-          key: `${P}.completion.sortAlphabetically`,
-          label: "Sort suggestions alphabetically",
-          hint: "Also toggled by Sort by name in the completion popup.",
-        },
-        {
-          t: "check",
-          key: `${P}.completion.autoPopup`,
-          label: "Show suggestions as you type",
-          children: [
-            {
-              t: "check",
-              key: `${P}.completion.insertOnSpecialKeys`,
-              label: "Insert selected suggestion by pressing space, dot, or other context-dependent keys",
-            },
-          ],
-        },
-        {
-          t: "check",
-          key: `${P}.completion.showDocumentation`,
-          label: "Show the documentation popup in",
-          inline: ms(`${P}.completion.documentationDelay`),
-        },
-        {
-          t: "check",
-          key: `${P}.completion.insertParentheses`,
-          label: "Insert parentheses automatically when applicable",
-          hint: "Function and method suggestions get (); the caret goes inside unless there are no parameters.",
-        },
-      ],
-    },
-    {
-      title: "Parameter Info",
-      items: [
-        {
-          t: "check",
-          key: `${P}.completion.parameterInfo`,
-          label: "Show the parameter info popup in",
-          inline: ms(`${P}.completion.parameterInfoDelay`),
-        },
       ],
     },
   ],
@@ -691,40 +580,6 @@ const SMART_KEYS = editorPage({
   ],
 });
 
-export const INLINE_COMPLETION = editorPage({
-  id: "editor.general.inlineCompletion",
-  title: "Inline Completion",
-  order: 7,
-  keywords: ["ghost text", "inline suggestions", "full line completion", "copilot"],
-  sections: [
-    {
-      items: [
-        {
-          t: "note",
-          text: "Gray suggestions at the caret from language servers that support inline completion. Tab accepts a suggestion, Escape dismisses it.",
-        },
-        {
-          t: "check",
-          key: `${P}.inlineCompletion.enabled`,
-          label: "Enable inline completion",
-          children: [
-            {
-              t: "check",
-              key: `${P}.inlineCompletion.onlyOnPause`,
-              label: "Show only when typing pauses for",
-              inline: ms(`${P}.inlineCompletion.pauseMs`, 3000),
-            },
-          ],
-        },
-      ],
-    },
-    {
-      title: "Languages",
-      items: [{ t: "custom", label: "Show inline completion for:", component: InlineCompletionLanguages }],
-    },
-  ],
-});
-
 const STICKY = editorPage({
   id: "editor.general.stickyLines",
   title: "Sticky Lines",
@@ -743,84 +598,6 @@ const STICKY = editorPage({
         },
       ],
     },
-  ],
-});
-
-export const CODE_EDITING = editorPage({
-  id: "editor.codeEditing",
-  title: "Code Editing",
-  order: 21,
-  keywords: ["highlight", "quick documentation", "hover", "error"],
-  sections: [
-    {
-      title: "Highlight on Caret Movement",
-      items: [
-        { t: "check", key: `${P}.codeEditing.highlightUsages`, label: "Usages of element at caret" },
-        { t: "check", key: `${P}.codeEditing.highlightBraces`, label: "Matched brace" },
-        { t: "check", key: `${P}.codeEditing.highlightSelection`, label: "Occurrences of selected text" },
-      ],
-    },
-    {
-      title: "Quick Documentation",
-      items: [
-        {
-          t: "check",
-          key: `${P}.codeEditing.quickDocOnHover`,
-          label: "Show quick documentation on hover",
-          children: [
-            {
-              t: "number",
-              key: `${P}.codeEditing.quickDocDelay`,
-              label: "Tooltip delay",
-              min: 100,
-              max: 5000,
-              unit: "ms",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      title: "Error Highlighting",
-      items: [
-        {
-          t: "check",
-          key: `${P}.codeEditing.nextErrorErrorsOnly`,
-          label: "Next error action goes to high priority problems only",
-        },
-      ],
-    },
-  ],
-});
-
-const INLAY: Item[] = [
-  {
-    t: "check",
-    key: `${P}.inlayHints`,
-    label: "Show inlay hints",
-    children: [
-      { t: "check", key: `${P}.inlay.types`, label: "Types" },
-      { t: "check", key: `${P}.inlay.parameters`, label: "Parameter names" },
-      { t: "check", key: `${P}.inlay.other`, label: "Other hints (chaining, closing labels…)" },
-    ],
-  },
-];
-
-export const INLAY_HINTS = editorPage({
-  id: "editor.inlayHints",
-  title: "Inlay Hints",
-  order: 33,
-  keywords: ["hints", "code vision", "usages", "parameter hints", "type hints"],
-  sections: [
-    { items: INLAY },
-    {
-      title: "Code Vision",
-      items: [
-        { t: "check", key: `${P}.inlay.codeVisionUsages`, label: "Usages" },
-        { t: "check", key: `${P}.inlay.codeVisionAuthor`, label: "Code author" },
-      ],
-    },
-    { title: "Languages", items: [{ t: "custom", label: "Show inlay hints for:", component: InlayLanguages }] },
   ],
 });
 

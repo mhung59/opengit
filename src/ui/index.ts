@@ -1,12 +1,17 @@
-export * from "./icons";
+export * from "./BarButton";
 export * from "./Button";
-export * from "./FloatingToolbar";
-export * from "./Kbd";
-export * from "./Tooltip";
-export * from "./Input";
 export * from "./Checkbox";
-export * from "./Select";
-export * from "./Tabs";
+export * from "./Dialog";
+export * from "./Feedback";
+export * from "./FloatingToolbar";
+export * from "./HighlightedText";
+export * from "./icons";
+export * from "./Input";
+export * from "./Kbd";
+export { lazyComponent, prefetchLazyComponents } from "./lazy";
+export * from "./List";
+export { fuzzyMatch, wordMatch } from "./match";
+export * from "./Menu";
 export {
   FILES_DRAG,
   dragRequiresAlt,
@@ -16,21 +21,15 @@ export {
   startPointerDrag,
   type DragSession,
 } from "./pointerDrag";
-export * from "./Tree";
-export * from "./List";
 export * from "./Popup";
-export * from "./Menu";
-export * from "./Dialog";
-export * from "./Splitter";
-export * from "./SourcePreview";
-export * from "./Feedback";
-export * from "./HighlightedText";
-export { fuzzyMatch, wordMatch } from "./match";
-export { badgeKind } from "./symbolKind";
 export { acquirePopup, isPopupOpen } from "./popupState";
-export * from "./BarButton";
-export { lazyComponent, prefetchLazyComponents } from "./lazy";
+export * from "./Select";
+export { copyMenuFor, copyText, selectableText } from "./selectableText";
+export * from "./Splitter";
+export { badgeKind } from "./symbolKind";
 export { T } from "./T";
-export { selectableText, copyMenuFor, copyText } from "./selectableText";
-export { useSelectionBoundary } from "./useSelectionBoundary";
+export * from "./Tabs";
+export * from "./Tooltip";
+export * from "./Tree";
+
 export * from "./rowSelection";

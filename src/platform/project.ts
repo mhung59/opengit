@@ -1,5 +1,4 @@
 /** The project open in this window. */
-import { confirmProjectTrust } from "./projectTrust";
 import { create } from "zustand";
 import { call, commands, type ProjectInfo, type Settings } from "./ipc";
 import { isVirtualUri, virtualContainer, virtualName, virtualParent } from "./virtualDocs";
@@ -49,7 +48,6 @@ export function startupLaunchHandled(): Promise<void> {
 }
 
 export async function openProject(path: string): Promise<ProjectInfo> {
-  await confirmProjectTrust(path, "local");
   useProject.setState({ opening: true });
   try {
     const project = await call(commands.openProject(path));

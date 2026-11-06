@@ -1,5 +1,5 @@
+import type { SearchQuery } from "@/platform/ipc";
 import { describe, expect, it, vi } from "vitest";
-import type { SearchQuery, SymbolMatch } from "@/platform/ipc";
 import { SeController, type SeDeps, type SeSnapshot } from "../everywhere/controller";
 import {
   DEFAULT_FILTERS,
@@ -42,16 +42,6 @@ const byExt = extensionIndex([
 const lang = (p: string) => languageOf(p, byExt);
 
 const fm = (rel: string) => ({ path: `/p/${rel}`, relPath: rel, score: 1, indices: [] });
-const sym = (name: string, kind: SymbolMatch["kind"], rel: string): SymbolMatch => ({
-  name,
-  kind,
-  container: null,
-  path: `/p/${rel}`,
-  relPath: rel,
-  range: { start: { line: 0, col: 0 }, end: { line: 0, col: 1 } },
-  score: 1,
-  indices: [],
-});
 
 describe("Search Everywhere filters", () => {
   it("sanitizes stored filters and reports which tabs are filtered", () => {
@@ -96,13 +86,8 @@ describe("Search Everywhere filters", () => {
         .items.map((i) => i.key),
     ).toEqual(["f:/p/b.ts", "f:/p/c.md"]);
   });
-
-  it("filters Symbols by kind and language", async () => {
-    const findSymbols = vi.fn(async () => [
-      sym("run", "function", "a.rs"),
-      sym("Run", "class", "b.ts"),
-      sym("runner", "variable", "c.ts"),
-    ]);
+  it("does not query retired symbol sources even when legacy filters are stored", async () => {
+    const findSymbols = vi.fn(async () => []);
     const { c, last } = setup({ findSymbols });
     const filters = { ...DEFAULT_FILTERS, symbols: { languages: ["rust"], kinds: ["variable"] } };
     c.run({
@@ -113,12 +98,8 @@ describe("Search Everywhere filters", () => {
       extra: {},
     });
     await flush();
-    expect(
-      last()
-        .sections.get("symbols")!
-        .items.map((i) => (i.kind === "symbol" ? i.name : "")),
-    ).toEqual(["Run"]);
-    expect(findSymbols).toHaveBeenLastCalledWith("run", "all", 4 * 50 + 1);
+    expect(last().sections.has("symbols")).toBe(false);
+    expect(findSymbols).not.toHaveBeenCalled();
   });
 
   it("passes the Text tab's file mask to the search", async () => {

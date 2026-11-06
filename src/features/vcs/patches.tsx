@@ -1,21 +1,21 @@
 import { commitRepo } from "./multiRoot";
 /** Create Patch… (from local changes or commits) and Apply Patch… (file or clipboard, with a preview). */
-import { useEffect, useState } from "react";
 import type { Commit, FileStatus, PatchFile, PatchSource, ShelvedChangeList } from "@/bindings";
+import { tx } from "@/platform/i18n";
 import { call, commands } from "@/platform/ipc";
-import { Button, Checkbox, Dialog, Icon, Input, List, Spinner, fileIconName, T } from "@/ui";
 import { workflowSettings } from "@/platform/workflowSettings";
+import { Button, Checkbox, Dialog, Icon, Input, List, Spinner, T, fileIconName } from "@/ui";
 import { notifications } from "@/workbench/contributions";
 import { ask } from "@/workbench/messages";
+import { useEffect, useState } from "react";
+import { activeList, useChangelists } from "./changelists";
+import styles from "./common.module.css";
 import { rememberSetting } from "./confirmations";
 import { openDialog } from "./dialogs";
 import { KIND_COLOR, baseName, dirName, stripSlash } from "./model";
 import { errorMessage, logConsole, runOp, saveAll } from "./ops";
 import { FileChecklist, defaultChangeFiles, reportApply } from "./shelf";
-import { activeList, useChangelists } from "./changelists";
 import { currentRepoRoot, useVcs } from "./store";
-import styles from "./common.module.css";
-import { tx } from "@/platform/i18n";
 
 export type PatchOrigin =
   | { kind: "changes"; files: FileStatus[] }
@@ -245,7 +245,7 @@ function ApplyPatchDialog({ patch, source, onClose }: { patch: string; source: s
     return () => {
       alive = false;
     };
-  }, [patch]);
+  }, [patch, repo]);
   const failing = files?.filter((f) => !f.applies).length ?? 0;
   const run = async () => {
     onClose();

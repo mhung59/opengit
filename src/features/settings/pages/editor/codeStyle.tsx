@@ -7,129 +7,19 @@
  * Scheme (Default / Project) is the scope these pages share; the Formatter tab
  * feeds `platform/formatGuard`.
  */
-import { useId, useState } from "react";
-import { Button, Checkbox, Input, type SelectOption, T } from "@/ui";
+import { lineCommentDefaults, type LanguageCodeStyle } from "@/platform/editorSettings";
+import { tx } from "@/platform/i18n";
 import { commands, isTauri, type LanguageInfo_Serialize as LanguageInfo } from "@/platform/ipc";
-import { ENCODING_CHOICES, lineCommentDefaults, type LanguageCodeStyle } from "@/platform/editorSettings";
-import { NATIVE_TO_ASCII_ACTION } from "../../nativeToAscii";
+import { Button, Checkbox, Input, T, type SelectOption } from "@/ui";
+import { useId } from "react";
 import { NumberInput, Row, Select } from "../../components/Form";
 import { useSetting } from "../../components/context";
 import type { PageSpec } from "../spec";
-import { CODE_STYLE_SCOPE, CodeStyleMain, SchemeRow, formatterLabels } from "./codeStyleScheme";
-import { editorPage, sectionLabels, type EditorSection } from "./kit";
 import styles from "./Editor.module.css";
-import { tx } from "@/platform/i18n";
-
-function VisualGuidesRow() {
-  const [guides, setGuides] = useSetting<number[]>("editor.codeStyle.visualGuides");
-  const [draft, setDraft] = useState<string | null>(null);
-  const id = useId();
-  const parse = (t: string) =>
-    t
-      .split(/[,\s]+/)
-      .filter(Boolean)
-      .map(Number);
-  const text = draft ?? guides.join(", ");
-  const invalid = draft !== null && parse(draft).some((n) => !Number.isInteger(n) || n < 1 || n > 999);
-  return (
-    <Row label="Visual guides" htmlFor={id} hint="Comma-separated column numbers, e.g. 80, 100.">
-      <Input
-        id={id}
-        className={styles.guides}
-        value={text}
-        invalid={invalid}
-        placeholder="Optional"
-        onChange={(e) => {
-          setDraft(e.target.value);
-          const nums = parse(e.target.value);
-          if (nums.every((n) => Number.isInteger(n) && n >= 1 && n <= 999)) setGuides(nums);
-        }}
-        onBlur={() => setDraft(null)}
-      />
-      <span className={styles.suffix}>
-        <T>columns</T>
-      </span>
-    </Row>
-  );
-}
-
-const LINE_SEPARATORS: SelectOption[] = [
-  { value: "system", label: "System-Dependent" },
-  { value: "lf", label: "Unix and macOS (\\n)" },
-  { value: "crlf", label: "Windows (\\r\\n)" },
-  { value: "cr", label: "Classic Mac OS (\\r)" },
-];
-
-const GENERAL_SECTIONS: EditorSection[] = [
-  {
-    items: [
-      {
-        t: "select",
-        key: "editor.codeStyle.lineSeparator",
-        label: "Line separator",
-        options: LINE_SEPARATORS,
-        hint: "Used for new files.",
-      },
-      { t: "number", key: "editor.codeStyle.hardWrapAt", label: "Hard wrap at", min: 1, max: 999, unit: "columns" },
-      { t: "custom", label: "Visual guides", component: VisualGuidesRow },
-    ],
-  },
-  {
-    title: "Indents Detection",
-    items: [
-      {
-        t: "check",
-        key: "editor.codeStyle.detectIndents",
-        label: "Detect and use existing file indents for editing",
-      },
-    ],
-  },
-  {
-    title: "EditorConfig",
-    items: [
-      {
-        t: "check",
-        key: "editor.codeStyle.editorconfig",
-        label: "Enable EditorConfig support",
-        hint: ".editorconfig files override indentation, line separators, encodings and save options.",
-      },
-    ],
-  },
-];
+import { CODE_STYLE_SCOPE, SchemeRow } from "./codeStyleScheme";
 
 /** Shared by Code Style and its sub-pages: the scheme is one scope. */
 const SCHEME_SCOPE = { projectScope: true, scopeGroup: CODE_STYLE_SCOPE, ownScopeSwitch: true } as const;
-
-const CODE_STYLE: PageSpec = {
-  id: "editor.codeStyle",
-  title: "Code Style",
-  group: "Editor",
-  order: 24,
-  ...SCHEME_SCOPE,
-  keywords: ["indent", "indentation", "tabs", "line separator", "editorconfig", "right margin", "scheme", "formatter"],
-  component: () => <CodeStyleMain general={GENERAL_SECTIONS} />,
-  dynamicLabels: () => [...sectionLabels(GENERAL_SECTIONS), ...formatterLabels()],
-};
-
-const OTHER = {
-  ...editorPage({
-    id: "editor.codeStyle.other",
-    title: "Other File Types",
-    order: 1000,
-    keywords: ["tab size", "indent"],
-    sections: [
-      { items: [{ t: "custom", label: "Scheme", component: SchemeRow }] },
-      {
-        title: "Tabs and Indents",
-        items: [
-          { t: "check", key: "editor.insertSpaces", label: "Use tab character", invert: true },
-          { t: "number", key: "editor.tabSize", label: "Tab size", min: 1, max: 16 },
-        ],
-      },
-    ],
-  }),
-  ...SCHEME_SCOPE,
-};
 
 /** Tabs and Indents of one language: overrides on top of the language definition. */
 function LanguageStyle({ lang }: { lang: LanguageInfo }) {
@@ -325,70 +215,3 @@ export async function codeStyleLanguagePages(): Promise<PageSpec[]> {
       component: () => <LanguageStyle lang={lang} />,
     }));
 }
-
-const ENCODINGS: SelectOption[] = ENCODING_CHOICES.map(([value, label]) => ({ value, label }));
-
-const ENCODINGS_PAGE = editorPage({
-  id: "editor.fileEncodings",
-  title: "File Encodings",
-  order: 27,
-  projectScope: true,
-  keywords: ["encoding", "charset", "utf-8", "bom", "native-to-ascii", "properties"],
-  sections: [
-    {
-      items: [
-        {
-          t: "select",
-          key: "editor.encodings.global",
-          label: "Global Encoding",
-          options: ENCODINGS,
-          hint: "Decodes files outside the project that are not valid UTF-8.",
-        },
-        {
-          t: "select",
-          key: "editor.encodings.project",
-          label: "Project Encoding",
-          options: ENCODINGS,
-          hint: "Encoding of new files; decodes project files that are not valid UTF-8 and have no BOM.",
-        },
-      ],
-    },
-    {
-      title: "Properties Files (*.properties)",
-      items: [
-        {
-          t: "select",
-          key: "editor.encodings.properties",
-          label: "Default encoding for properties files",
-          options: ENCODINGS,
-        },
-        {
-          t: "check",
-          key: "editor.encodings.nativeToAscii",
-          action: NATIVE_TO_ASCII_ACTION,
-          label: "Transparent native-to-ascii conversion",
-        },
-      ],
-    },
-    {
-      items: [
-        {
-          t: "select",
-          key: "editor.encodings.utf8Bom",
-          label: "Create UTF-8 files",
-          options: [
-            { value: "never", label: "with NO BOM" },
-            { value: "always", label: "with BOM" },
-            { value: "windows", label: "with BOM under Windows, with no BOM otherwise" },
-          ],
-        },
-        {
-          t: "note",
-          text: "A charset in .editorconfig takes precedence. Change one file's encoding from the status bar.",
-        },
-      ],
-    },
-  ],
-});
-
-export const CODE_STYLE_PAGES = [CODE_STYLE, OTHER, ENCODINGS_PAGE];

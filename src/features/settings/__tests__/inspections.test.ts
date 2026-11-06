@@ -1,24 +1,24 @@
+import { validateInspections } from "@/platform/inspections";
 import { describe, expect, it } from "vitest";
+import { splitPageTarget } from "../model/staging";
+import { EDITOR_PAGES } from "../pages/editor";
+import { INSPECTIONS_PAGE } from "../pages/editor/inspections";
 import {
   buildInspectionTree,
   checkState,
-  filterInspectionTree,
-  inspectionIds,
-  setEnabled,
   copyProfile,
   deleteProfile,
-  renameProfile,
-  setLevel,
-  withProfileOverrides,
+  filterInspectionTree,
+  inspectionIds,
   pathToInspection,
+  renameProfile,
+  setEnabled,
+  setLevel,
   setOption,
+  withProfileOverrides,
   type InspectionNode,
 } from "../pages/editor/inspectionsModel";
-import { splitPageTarget } from "../model/staging";
-import { validateInspections } from "@/platform/inspections";
 import { NATURAL_LANGUAGES_PAGE, SPELLING_PAGE } from "../pages/editor/spelling";
-import { INSPECTIONS_PAGE } from "../pages/editor/inspections";
-import { EDITOR_PAGES } from "../pages/editor";
 
 const languages = [
   { name: "Python", servers: ["basedpyright", "ruff"] },
@@ -94,8 +94,8 @@ describe("inspections tree", () => {
     expect(o["lsp:ruff"]).toEqual({ enabled: false });
   });
 
-  it("registers as Editor › Inspections", () => {
-    expect(EDITOR_PAGES).toContain(INSPECTIONS_PAGE);
+  it("keeps the dormant inspections page out of the Git edition", () => {
+    expect(EDITOR_PAGES).not.toContain(INSPECTIONS_PAGE);
     expect(INSPECTIONS_PAGE.keywords).toContain("Weak Warning");
   });
 });
@@ -129,8 +129,8 @@ describe("inspection profile management", () => {
     expect(s3.profile).toBe("project");
   });
 
-  it("registers Natural Languages › Spelling under Editor", () => {
-    expect(EDITOR_PAGES).toContain(SPELLING_PAGE);
+  it("keeps the dormant spelling page out of the Git edition", () => {
+    expect(EDITOR_PAGES).not.toContain(SPELLING_PAGE);
     expect(SPELLING_PAGE.id.startsWith(`${NATURAL_LANGUAGES_PAGE.id}.`)).toBe(true);
     expect(SPELLING_PAGE.keywords).toContain("accepted words");
   });

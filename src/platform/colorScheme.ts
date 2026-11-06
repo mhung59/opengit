@@ -368,10 +368,7 @@ export function schemeCss(
   const valid = customSchemes(customs);
   const id = effectiveScheme(setting, root, valid);
   const decls: Array<[string, string]> = [];
-  // A plugin theme brings its own editor colours: an explicit scheme replaces them even on the same base.
-  const el = root === undefined ? (typeof document !== "undefined" ? document.documentElement : null) : root;
-  const pluginTheme = !!el?.dataset.pluginTheme && id === setting;
-  if (id !== themeScheme(root) || pluginTheme) {
+  if (id !== themeScheme(root)) {
     const tokens = resolvedSchemeTokens(id, valid);
     for (const [k, v] of tokens) if (SCHEME_VARS.has(k) || k.startsWith("--syn-")) decls.push([k, v]);
     // The editor surface follows the scheme, not the island colour of the UI theme.

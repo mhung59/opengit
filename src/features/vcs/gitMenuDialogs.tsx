@@ -1,18 +1,18 @@
 /** Git menu dialogs: Pull…, Merge…, Rebase…, Manage Remotes… and Worktrees. */
-import { useEffect, useMemo, useState } from "react";
-import clsx from "clsx";
 import type { Branch, MergeOptions, Remote, Worktree } from "@/bindings";
 import { executeAction } from "@/platform/actions";
+import { tx } from "@/platform/i18n";
 import { call, commands } from "@/platform/ipc";
-import { notifications } from "@/workbench/contributions";
 import { Checkbox, Dialog, IconButton, Input, Select, T, type SelectOption } from "@/ui";
+import { notifications } from "@/workbench/contributions";
+import clsx from "clsx";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { sortLocal, sortRemote } from "./branches";
 import { conflictActions, openConflictsInstead, validateBranchName } from "./branchOps";
+import styles from "./common.module.css";
 import { confirmDialog, openDialog } from "./dialogs";
 import { errorMessage, runOp, runRemote, saveAll } from "./ops";
 import { currentRepo, loadBranches, refreshNow, repoName, selectRepo, useVcs } from "./store";
-import styles from "./common.module.css";
-import { tx } from "@/platform/i18n";
 
 // --- shared -----------------------------------------------------------------
 
@@ -92,7 +92,7 @@ function useBranches(): Branch[] {
     return () => {
       live = false;
     };
-  }, []);
+  }, [repo]);
   return branches;
 }
 
@@ -136,7 +136,7 @@ function PullDialog({ onClose }: { onClose: () => void }) {
     return () => {
       alive = false;
     };
-  }, [info?.upstream]);
+  }, [info?.upstream, repo]);
 
   const remoteBranches = useMemo(() => (remote ? remoteBranchesOf(branches, remote) : []), [branches, remote]);
   // Default: the upstream's branch, else the same name as the current branch.
@@ -383,16 +383,19 @@ function RemotesDialog({ onClose }: { onClose: () => void }) {
   const [remotes, setRemotes] = useState<Remote[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const reload = () =>
-    call(commands.vcsRemotes(repo))
-      .then((list) => {
-        setRemotes(list);
-        setSelected((s) => (s && list.some((r) => r.name === s) ? s : (list[0]?.name ?? null)));
-      })
-      .catch((e) => setError(errorMessage(e)));
+  const reload = useCallback(
+    () =>
+      call(commands.vcsRemotes(repo))
+        .then((list) => {
+          setRemotes(list);
+          setSelected((s) => (s && list.some((r) => r.name === s) ? s : (list[0]?.name ?? null)));
+        })
+        .catch((e) => setError(errorMessage(e))),
+    [repo],
+  );
   useEffect(() => {
     void reload();
-  }, []);
+  }, [reload]);
 
   const apply = async (edit: Parameters<typeof commands.vcsEditRemote>[1]) => {
     try {
@@ -579,16 +582,19 @@ export function WorktreesPanel({ className, listClassName }: { className?: strin
   const [list, setList] = useState<Worktree[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const reload = () =>
-    call(commands.vcsWorktrees(repo))
-      .then((l) => {
-        setList(l);
-        setError(null);
-      })
-      .catch((e) => setError(errorMessage(e)));
+  const reload = useCallback(
+    () =>
+      call(commands.vcsWorktrees(repo))
+        .then((l) => {
+          setList(l);
+          setError(null);
+        })
+        .catch((e) => setError(errorMessage(e))),
+    [repo],
+  );
   useEffect(() => {
     void reload();
-  }, [repo]);
+  }, [reload]);
   const current = list.find((w) => w.path === selected);
 
   const remove = async () => {

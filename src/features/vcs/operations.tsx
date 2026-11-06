@@ -4,23 +4,23 @@ import { commitKey, commitRepo } from "./multiRoot";
  * cherry-pick or revert, and the Git Log commit actions (Cherry-Pick, Revert
  * Commit, Reset Current Branch to Here, New Tag, Compare with Local).
  */
-import { useEffect, useMemo, useState } from "react";
 import type { ChangedFile, Commit, CompareResult, ResetMode, WorkingTreeChange } from "@/bindings";
 import { executeAction } from "@/platform/actions";
+import { tx } from "@/platform/i18n";
 import { call, commands, nextRequestId } from "@/platform/ipc";
 import { Checkbox, Dialog, Icon, Input, Spinner, T } from "@/ui";
 import { notifications } from "@/workbench/contributions";
-import { diffInput, openDiff, type DiffData, type DiffSide } from "./diffInput";
+import { useEffect, useMemo, useState } from "react";
+import styles from "./common.module.css";
+import { displayPath } from "./compareData";
+import { ComparisonTree } from "./ComparisonTree";
 import { openDialog, promptText } from "./dialogs";
+import { diffInput, openDiff, type DiffData, type DiffSide } from "./diffInput";
+import { buildFileTree, type FileTreeNode } from "./fileTree";
+import { reloadLog, useGitLog } from "./logStore";
 import { KIND_COLOR, fileCount } from "./model";
 import { runGitOperation, runOp } from "./ops";
-import { reloadLog, useGitLog } from "./logStore";
 import { conflictedFiles, currentRepo, currentRepoRoot, refreshNow, repoName, repoOf, useVcs } from "./store";
-import styles from "./common.module.css";
-import { ComparisonTree } from "./ComparisonTree";
-import { buildFileTree, type FileTreeNode } from "./fileTree";
-import { tx } from "@/platform/i18n";
-import { displayPath } from "./compareData";
 
 // ---------------------------------------------------------------------------
 // Operation in progress
@@ -396,7 +396,7 @@ function TagDialog({ onClose }: { onClose: () => void }) {
   const [existing, setExisting] = useState<string[]>([]);
   useEffect(() => {
     void call(commands.vcsTags(repo)).then(setExisting, () => undefined);
-  }, []);
+  }, [repo]);
   const error = validateTagName(name, force ? [] : existing);
   const run = async () => {
     if (error) return;

@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { InlineCompletionItem } from "@/bindings";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import type { InlineCompletionItem } from "@/bindings";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const ipc = vi.hoisted(() => ({
   lspInlineCompletion: vi.fn(),
@@ -21,7 +21,6 @@ const {
   ghostText,
   inlineCompletionExtension,
   nextWord,
-  registerInlineCompletionActions,
   requestInline,
   toSuggestions,
 } = await import("./inlineCompletion");
@@ -145,31 +144,13 @@ describe("inline completion without a provider", () => {
   });
   const hintText = () => document.querySelector(".cm-lsp-hint")?.textContent ?? null;
 
-  async function invoke(view: EditorView) {
-    const { useEditorRegistry } = await import("@/editor/api");
-    const { getAction } = await import("@/platform/actions");
-    useEditorRegistry.setState({ active: { view, ctx: view.state.facet(lspDoc)! } as never });
-    const off = registerInlineCompletionActions();
-    void getAction("editor.inlineCompletion.trigger")!.run({ ctx: {} } as never);
-    off();
-  }
-
   it.each([
-    [
-      "names the running server that lacks it",
-      "jdtls doesn't support inline completion",
-      "jdtls doesn't support inline completion",
-    ],
-    [
-      "says no server runs when none does",
-      "no running language server supports inline completion",
-      "No language server available",
-    ],
-  ])("on explicit invocation %s", async (_, message, shown) => {
+    ["names the running server that lacks it", "jdtls doesn't support inline completion"],
+    ["says no server runs when none does", "no running language server supports inline completion"],
+  ])("on explicit invocation %s", async (_, message) => {
     const view = editor("String s = ");
     ipc.lspInlineCompletion.mockResolvedValueOnce(unavailable(message));
-    await invoke(view);
-    await vi.waitFor(() => expect(hintText()).toBe(shown));
+    await expect(requestInline(view, false)).rejects.toMatchObject({ kind: "unavailable", message });
   });
 
   it("stays silent while typing", async () => {

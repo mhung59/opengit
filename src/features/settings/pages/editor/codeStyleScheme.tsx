@@ -1,19 +1,15 @@
 /**
  * Code Style › Scheme (IDEA's Default = IDE-level, Project = stored in the
- * project) and the Formatter tab. The scheme is the scope shared by Code Style
+ * project). The scheme is the scope shared by Code Style
  * and its language pages (`scopeGroup`); "Copy to Project" / "Copy to IDE"
  * stage every Code Style value in the other scope.
  */
-import { useState } from "react";
-import clsx from "clsx";
-import { Button, T, type SelectOption } from "@/ui";
 import { useProject } from "@/platform/project";
-import { GlobListEditor, Row, Select } from "../../components/Form";
-import { usePageContext, useSetting } from "../../components/context";
+import { Button, T, type SelectOption } from "@/ui";
+import { Row, Select } from "../../components/Form";
+import { usePageContext } from "../../components/context";
 import { setPageScope, stage, stagedValue, useSettingsDialog, type Scope } from "../../model/staging";
-import { EditorSections, sectionLabels, type EditorSection } from "./kit";
 import styles from "./CodeStyle.module.css";
-import { tx } from "@/platform/i18n";
 
 export const CODE_STYLE_SCOPE = "editor.codeStyle";
 
@@ -82,69 +78,3 @@ export function SchemeRow() {
     </Row>
   );
 }
-
-function DoNotFormatRow() {
-  const [globs, setGlobs] = useSetting<string[]>("editor.codeStyle.doNotFormat");
-  return (
-    <Row label="Do not format" stacked hint="File name patterns and folders (glob), e.g. *.min.js, generated/**.">
-      <GlobListEditor value={globs ?? []} onChange={setGlobs} placeholder="*.min.js" aria-label="Do not format" />
-    </Row>
-  );
-}
-
-export const FORMATTER_SECTIONS: EditorSection[] = [
-  {
-    items: [
-      { t: "custom", label: "Do not format", keywords: ["glob", "exclude from formatting"], component: DoNotFormatRow },
-      {
-        t: "check",
-        key: "editor.codeStyle.formatterTagsEnabled",
-        label: "Turn formatter on/off with markers in code comments",
-        children: [
-          { t: "text", key: "editor.codeStyle.formatterOffTag", label: "Off", placeholder: "@formatter:off" },
-          { t: "text", key: "editor.codeStyle.formatterOnTag", label: "On", placeholder: "@formatter:on" },
-          {
-            t: "check",
-            key: "editor.codeStyle.formatterTagsRegexp",
-            label: "Enable regular expressions in formatter markers",
-          },
-        ],
-      },
-    ],
-  },
-];
-
-type Tab = "general" | "formatter";
-
-/** Code Style: Scheme, then the General / Formatter tabs. */
-export function CodeStyleMain({ general }: { general: EditorSection[] }) {
-  const [tab, setTab] = useState<Tab>("general");
-  const tabs: Array<[Tab, string]> = [
-    ["general", "General"],
-    ["formatter", "Formatter"],
-  ];
-  return (
-    <div className={styles.page}>
-      <SchemeRow />
-      <div className={styles.tabs} role="tablist" aria-label={tx("Code Style")}>
-        {tabs.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            className={clsx(styles.tab, tab === id && styles.tabOn)}
-            onClick={() => setTab(id)}
-          >
-            <T>{label}</T>
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel">
-        <EditorSections sections={tab === "general" ? general : FORMATTER_SECTIONS} />
-      </div>
-    </div>
-  );
-}
-
-export const formatterLabels = () => ["Scheme", "Formatter", ...sectionLabels(FORMATTER_SECTIONS)];

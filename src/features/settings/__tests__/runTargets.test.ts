@@ -3,10 +3,8 @@ import { pageLabels } from "../pages/registry";
 import { parentPath } from "../pages/runTargets";
 
 describe("Run Targets page", () => {
-  it("is found by its fields", () => {
-    expect(pageLabels("build.runTargets")).toEqual(
-      expect.arrayContaining(["SSH configuration", "Project folder on target", "Python interpreter"]),
-    );
+  it("does not contribute fields to Git edition settings search", () => {
+    expect(pageLabels("build.runTargets")).toEqual([]);
   });
 
   it("walks up remote folders", () => {

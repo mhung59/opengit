@@ -13,10 +13,6 @@ export const commands = {
 	recentProjects: () => __TAURI_INVOKE<RecentProject[]>("recent_projects"),
 	removeRecentProject: (path: string) => typedError<null, IdeError>(__TAURI_INVOKE("remove_recent_project", { path })),
 	openProject: (path: string) => typedError<ProjectInfo_Serialize, IdeError>(__TAURI_INVOKE("open_project", { path })),
-	projectTrustStatus: (path: string) => typedError<TrustStatus, IdeError>(__TAURI_INVOKE("project_trust_status", { path })),
-	projectTrustList: () => typedError<TrustDecisions, IdeError>(__TAURI_INVOKE("project_trust_list")),
-	projectTrustSet: (path: string, trusted: boolean, folder: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("project_trust_set", { path, trusted, folder })),
-	projectTrustRemoveLocation: (path: string) => typedError<null, IdeError>(__TAURI_INVOKE("project_trust_remove_location", { path })),
 	workspaceCreate: (path: string, name: string, projects: string[]) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("workspace_create", { path, name, projects })),
 	workspaceAttach: (path: string) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("workspace_attach", { path })),
 	workspaceUpdate: (name: string, projects: string[]) => typedError<ProjectInfo_Serialize, IdeError>(__TAURI_INVOKE("workspace_update", { name, projects })),
@@ -81,17 +77,6 @@ export const commands = {
 	cancelTask: (id: TaskId) => __TAURI_INVOKE<boolean>("cancel_task", { id }),
 	/**  Routes frontend logs into the backend `tracing` pipeline. */
 	logFrontend: (level: LogLevel, message: string) => __TAURI_INVOKE<void>("log_frontend", { level, message }),
-	notebookOpen: (path: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_open", { path })),
-	notebookGet: (id: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_get", { id })),
-	notebookEdit: (id: string, version: number, edit: NotebookEdit) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_edit", { id, version, edit })),
-	notebookSave: (id: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_save", { id })),
-	notebookReload: (id: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_reload", { id })),
-	notebookUndo: (id: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_undo", { id })),
-	notebookRedo: (id: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_redo", { id })),
-	notebookClose: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("notebook_close", { id })),
-	notebookExecute: (id: string, cells: string[], python: string | null, request: RequestId, onOutput: Channel<NotebookOutputEvent>) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_execute", { id, cells, python, request, onOutput })),
-	notebookInterrupt: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("notebook_interrupt", { id })),
-	notebookRestart: (id: string) => typedError<NotebookSnapshot, IdeError>(__TAURI_INVOKE("notebook_restart", { id })),
 	fsReadDir: (path: string) => typedError<FileEntry[], IdeError>(__TAURI_INVOKE("fs_read_dir", { path })),
 	fsEntryKind: (path: string) => typedError<EntryKind, IdeError>(__TAURI_INVOKE("fs_entry_kind", { path })),
 	/**  Size and text/binary classification, from the file's head only. */
@@ -275,7 +260,6 @@ export const commands = {
 	pathCompletions: (from: IpcPath, prefix: string) => typedError<PathCompletion[], IdeError>(__TAURI_INVOKE("path_completions", { from, prefix })),
 	/**  Paths in an HTML document or stylesheet that name no existing file. */
 	webUnresolvedReferences: (doc: DocId) => typedError<FileReference[], IdeError>(__TAURI_INVOKE("web_unresolved_references", { doc })),
-	dependencyVersions: (doc: DocId, offset: number | null, request: RequestId) => typedError<DependencyVersions[], IdeError>(__TAURI_INVOKE("dependency_versions", { doc, offset, request })),
 	/**
 	 *  Misspelt words in the comments, string literals and declared names of
 	 *  `doc` that `scope` includes (all of its text for prose). Cancel with
@@ -512,115 +496,8 @@ export const commands = {
 	termDefaultShell: () => __TAURI_INVOKE<string>("term_default_shell"),
 	/**  Installed shells for the Terminal's "New Predefined Session" menu. */
 	termAvailableShells: () => __TAURI_INVOKE<string[]>("term_available_shells"),
-	/**  Detected configs followed by user-defined ones (user ids win on conflict). */
-	runConfigs: () => typedError<RunConfig_Serialize[], IdeError>(__TAURI_INVOKE("run_configs")),
-	runDotnetResolve: (config: RunConfig_Deserialize, debug: boolean) => typedError<RunConfig_Serialize, IdeError>(__TAURI_INVOKE("run_dotnet_resolve", { config, debug })),
-	runSaveConfigs: (configs: RunConfig_Deserialize[], removedDetectedIds: string[] | null) => typedError<null, IdeError>(__TAURI_INVOKE("run_save_configs", { configs, removedDetectedIds })),
-	/**  Configuration templates: per-type defaults applied to new configurations. */
-	runTemplates: () => typedError<RunConfig_Serialize[], IdeError>(__TAURI_INVOKE("run_templates")),
-	runSaveTemplates: (templates: RunConfig_Deserialize[]) => typedError<null, IdeError>(__TAURI_INVOKE("run_save_templates", { templates })),
-	/**  The environment runs inherit when "Include system environment variables" is on. */
-	runSystemEnv: () => __TAURI_INVOKE<{ [key in string]: string }>("run_system_env"),
-	runStart: (config: RunConfig_Deserialize, onOutput: Channel<OutputChunk>) => typedError<RunInfo, IdeError>(__TAURI_INVOKE("run_start", { config, onOutput })),
-	runStop: (id: RunId) => typedError<null, IdeError>(__TAURI_INVOKE("run_stop", { id })),
-	runStdin: (id: RunId, data: string) => typedError<null, IdeError>(__TAURI_INVOKE("run_stdin", { id, data })),
-	runList: () => __TAURI_INVOKE<RunInfo[]>("run_list"),
-	runCloseStdin: (id: RunId) => typedError<null, IdeError>(__TAURI_INVOKE("run_close_stdin", { id })),
-	/**  Terminal size of a run started with "Emulate terminal in output console". */
-	runResize: (id: RunId, cols: number, rows: number) => typedError<null, IdeError>(__TAURI_INVOKE("run_resize", { id, cols, rows })),
-	/**  Writes the Gradle init script adding `jvm_args` to the JVMs the build forks; returns its path. */
-	runGradleJvmArgsScript: (jvmArgs: string[]) => typedError<string, IdeError>(__TAURI_INVOKE("run_gradle_jvm_args_script", { jvmArgs })),
-	runTomcatHome: (home: string) => typedError<TomcatHome, IdeError>(__TAURI_INVOKE("run_tomcat_home", { home })),
-	runTomcatArtifacts: () => typedError<WebArtifact[], IdeError>(__TAURI_INVOKE("run_tomcat_artifacts")),
-	runTomcatBuild: (config: RunConfig_Deserialize) => typedError<({
-	/**  Stable id, e.g. `npm:dev`, `cargo:run:app`, or a uuid for user-defined. */
-	id: string,
-	name: string,
-	/**  `npm` | `cargo` | `gradle` | `maven` | `go` | `python` | `pytest` | `make` | `shell` … */
-	kind: string,
-	command: string,
-	args: string[],
-	cwd: IpcPath | null,
-	env: { [key in string]: string },
-	/**  Detected configs are regenerated; user configs persist in `.openidea/run.toml`. */
-	detected: boolean,
-	/**  Test runner configs render results in the test tree. */
-	isTest: boolean,
-	/**  DAP adapter that can debug this config, if any. */
-	debugAdapter: string | null,
-	/**  "Allow multiple instances": Run on a running config starts another one instead of restarting it. */
-	allowParallel?: boolean,
-}) & (RunExtras_Serialize) | null, IdeError>(__TAURI_INVOKE("run_tomcat_build", { config })),
-	runApplicationBuild: (config: RunConfig_Deserialize, module: string) => typedError<RunConfig_Serialize, IdeError>(__TAURI_INVOKE("run_application_build", { config, module })),
-	runApplicationPublish: (config: RunConfig_Deserialize, classPaths: string[], mainClass: string) => typedError<null, IdeError>(__TAURI_INVOKE("run_application_publish", { config, classPaths, mainClass })),
-	runTomcatUpdate: (config: RunConfig_Deserialize, mode: string) => typedError<null, IdeError>(__TAURI_INVOKE("run_tomcat_update", { config, mode })),
-	/**
-	 *  Results from the JUnit XML reports (Surefire, Failsafe, Gradle) of the module at
-	 *  `module` (relative to the project root) written since `since_ms` (Unix epoch, ms).
-	 */
-	runTestReports: (module: string | null, sinceMs: number | null) => typedError<TestCaseReport[], IdeError>(__TAURI_INVOKE("run_test_reports", { module, sinceMs })),
 	/**  Maven and Gradle projects of the window's project, from the build files plus the last sync. */
 	buildModel: () => typedError<BuildModel, IdeError>(__TAURI_INVOKE("build_model")),
-	/**
-	 *  Runs Maven (`help:effective-pom dependency:tree`) or Gradle (`tasks --all`) in the
-	 *  background, reporting progress on `on_progress`; cancellable with `cancel_request(request)`.
-	 *  Returns the refreshed model; a failed build is reported in its `syncError`.
-	 */
-	buildSync: (tool: BuildTool, request: RequestId, offline: boolean, profiles: string[], onProgress: Channel<SyncProgress>) => typedError<BuildModel, IdeError>(__TAURI_INVOKE("build_sync", { tool, request, offline, profiles, onProgress })),
-	/**  Where the direct dependency `dependency` of the Maven module `pom` is declared. */
-	mavenDependencyDeclaration: (pom: string, dependency: ArtifactKey) => typedError<Location, IdeError>(__TAURI_INVOKE("maven_dependency_declaration", { pom, dependency })),
-	/**
-	 *  Adds an `<exclusion>` of `exclusion` to the declaration of the direct dependency
-	 *  `dependency` of the Maven module `pom`, through the open document when there is one
-	 *  (saved). Returns the declaration; nothing changes when it already excludes it.
-	 */
-	mavenExcludeDependency: (pom: string, dependency: ArtifactKey, exclusion: ArtifactKey) => typedError<Location, IdeError>(__TAURI_INVOKE("maven_exclude_dependency", { pom, dependency, exclusion })),
-	/**
-	 *  Build › Build Project / Rebuild Project / Build Module (`file`: a file or folder of the
-	 *  module) / Build Artifacts, streaming the console and messages on `on_event`; cancellable
-	 *  with `cancel_request(request)`. Diagnostics of `clear` (the files of the previous build)
-	 *  are cleared first; the new messages are published as `build` diagnostics.
-	 */
-	buildRun: (kind: BuildKind, file: string | null, request: RequestId, clear: string[], onEvent: Channel<BuildEvent>) => typedError<BuildResult, IdeError>(__TAURI_INVOKE("build_run", { kind, file, request, clear, onEvent })),
-	/**
-	 *  Cancellable with `cancel_request(request)`.
-	 *  Builds the workspace (when `build`), then resolves the runtime (or test)
-	 *  classpath and the JDK of the module at `module` (absolute, or relative to the project root).
-	 *  A module with Kotlin / Groovy / Scala sources is built by its build system, whose class directories come first.
-	 */
-	javaResolveLaunch: (module: string, test: boolean, build: boolean, request: RequestId) => typedError<JavaLaunchInfo, IdeError>(__TAURI_INVOKE("java_resolve_launch", { module, test, build, request })),
-	/**  Port of java-debug's DAP server inside the jdtls serving `module` (started on demand). */
-	javaDebugServer: (module: string) => typedError<number, IdeError>(__TAURI_INVOKE("java_debug_server", { module })),
-	/**  Incremental build of the jdtls workspace serving `module` (e.g. before HotSwap). */
-	javaBuildWorkspace: (module: string) => typedError<JavaBuildStatus, IdeError>(__TAURI_INVOKE("java_build_workspace", { module })),
-	/**  Starts a session owned by this window: its events (and those of child sessions) go here only. */
-	debugStart: (config: LaunchConfig) => typedError<DebugSessionId, IdeError>(__TAURI_INVOKE("debug_start", { config })),
-	debugSetBreakpoints: (path: string, breakpoints: Breakpoint[]) => typedError<BreakpointState[], IdeError>(__TAURI_INVOKE("debug_set_breakpoints", { path, breakpoints })),
-	debugThreads: (session: DebugSessionId) => typedError<ThreadInfo[], IdeError>(__TAURI_INVOKE("debug_threads", { session })),
-	debugStackTrace: (session: DebugSessionId, threadId: number) => typedError<StackFrame[], IdeError>(__TAURI_INVOKE("debug_stack_trace", { session, threadId })),
-	debugScopes: (session: DebugSessionId, frameId: number) => typedError<Scope[], IdeError>(__TAURI_INVOKE("debug_scopes", { session, frameId })),
-	debugVariables: (session: DebugSessionId, reference: number) => typedError<Variable[], IdeError>(__TAURI_INVOKE("debug_variables", { session, reference })),
-	debugEvaluate: (session: DebugSessionId, frameId: number | null, expression: string) => typedError<Variable, IdeError>(__TAURI_INVOKE("debug_evaluate", { session, frameId, expression })),
-	debugResume: (session: DebugSessionId, threadId: number) => typedError<null, IdeError>(__TAURI_INVOKE("debug_resume", { session, threadId })),
-	debugPause: (session: DebugSessionId, threadId: number) => typedError<null, IdeError>(__TAURI_INVOKE("debug_pause", { session, threadId })),
-	debugStep: (session: DebugSessionId, threadId: number, kind: StepKind) => typedError<null, IdeError>(__TAURI_INVOKE("debug_step", { session, threadId, kind })),
-	debugRunTo: (session: DebugSessionId, threadId: number, path: string, line: number, force: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("debug_run_to", { session, threadId, path, line, force })),
-	debugStop: (session: DebugSessionId) => typedError<null, IdeError>(__TAURI_INVOKE("debug_stop", { session })),
-	/**  Evaluate with an explicit DAP context: `repl`, `watch`, `hover` or `clipboard`. */
-	debugEvaluateIn: (session: DebugSessionId, frameId: number | null, expression: string, context: string | null) => typedError<Variable, IdeError>(__TAURI_INVOKE("debug_evaluate_in", { session, frameId, expression, context })),
-	/**  Last known verification states of a file's breakpoints (refetch on `breakpointsChanged`). */
-	debugBreakpointStates: (path: string) => typedError<BreakpointState[], IdeError>(__TAURI_INVOKE("debug_breakpoint_states", { path })),
-	/**  This window's live sessions, including adapter-started child sessions. */
-	debugSessions: () => typedError<SessionInfo[], IdeError>(__TAURI_INVOKE("debug_sessions")),
-	/**  Status of every known language server / debug adapter and the languages using it. */
-	toolsList: () => typedError<ToolInfo[], IdeError>(__TAURI_INVOKE("tools_list")),
-	/**
-	 *  Installs (or reinstalls) a tool into `<app-data>/tools`, streaming output through
-	 *  `on_event`. Cancel with `cancel_request(request)`.
-	 */
-	toolsInstall: (name: string, request: RequestId, onEvent: Channel<InstallEvent>) => typedError<ToolInfo, IdeError>(__TAURI_INVOKE("tools_install", { name, request, onEvent })),
-	/**  Removes a tool the IDE installed. */
-	toolsUninstall: (name: string) => typedError<ToolInfo, IdeError>(__TAURI_INVOKE("tools_uninstall", { name })),
 	/**  JDK distributions Download JDK offers. */
 	jdkDownloadVendors: () => __TAURI_INVOKE<JdkVendor[]>("jdk_download_vendors"),
 	/**  Java versions `vendor` publishes; cancellable with `cancel_request(request)`. */
@@ -638,13 +515,6 @@ export const commands = {
 	sdkDetect: (kind: SdkKind) => typedError<Sdk[], IdeError>(__TAURI_INVOKE("sdk_detect", { kind })),
 	/**  The interpreter the project uses: the configured one, else its virtualenv. */
 	sdkPythonEffective: () => typedError<string | null, IdeError>(__TAURI_INVOKE("sdk_python_effective")),
-	/**
-	 *  SDK / library source folders shown under "External Libraries" in the Project view,
-	 *  with the Maven / Gradle dependency jars of the build model.
-	 */
-	sdkProjectLibraries: () => typedError<LibraryGroup[], IdeError>(__TAURI_INVOKE("sdk_project_libraries")),
-	/**  Looks up `names` (bare command names): `node_modules/.bin` above `near`, then the search path. */
-	sdkLocateTools: (names: string[], near: string | null) => typedError<LocatedTools, IdeError>(__TAURI_INVOKE("sdk_locate_tools", { names, near })),
 	/**  `base -m venv location`; output lines stream through `on_output`. */
 	sdkPythonCreateVenv: (base: string, location: string, request: RequestId, onOutput: Channel<string>) => typedError<Sdk, IdeError>(__TAURI_INVOKE("sdk_python_create_venv", { base, location, request, onOutput })),
 	sdkPythonPackages: (python: string, request: RequestId) => typedError<PythonPackage[], IdeError>(__TAURI_INVOKE("sdk_python_packages", { python, request })),
@@ -741,53 +611,12 @@ export const commands = {
 	 *  with `app_restart`. One install runs at a time.
 	 */
 	appInstallUpdate: (request: RequestId, onProgress: Channel<UpdateProgress>) => typedError<null, IdeError>(__TAURI_INVOKE("app_install_update", { request, onProgress })),
-	debugExceptionFilters: () => typedError<SessionExceptionFilters[], IdeError>(__TAURI_INVOKE("debug_exception_filters")),
-	debugSetExceptionBreakpoints: (choices: { [key in string]: boolean }) => typedError<null, IdeError>(__TAURI_INVOKE("debug_set_exception_breakpoints", { choices })),
-	debugSetVariable: (session: DebugSessionId, container: number, name: string, evaluateName: string | null, frameId: number | null, value: string) => typedError<Variable, IdeError>(__TAURI_INVOKE("debug_set_variable", { session, container, name, evaluateName, frameId, value })),
-	/**  Force Step Over: step over with every breakpoint suspended until the step ends. */
-	debugForceStepOver: (session: DebugSessionId, threadId: number) => typedError<null, IdeError>(__TAURI_INVOKE("debug_force_step_over", { session, threadId })),
-	/**  Smart Step Into: the calls on the current line of `frame_id`. */
-	debugStepInTargets: (session: DebugSessionId, frameId: number) => typedError<StepInTarget[], IdeError>(__TAURI_INVOKE("debug_step_in_targets", { session, frameId })),
-	debugStepInTarget: (session: DebugSessionId, threadId: number, targetId: number) => typedError<null, IdeError>(__TAURI_INVOKE("debug_step_in_target", { session, threadId, targetId })),
-	/**  Reset Frame (Drop Frame). */
-	debugRestartFrame: (session: DebugSessionId, frameId: number) => typedError<null, IdeError>(__TAURI_INVOKE("debug_restart_frame", { session, frameId })),
-	debugCapabilities: (session: DebugSessionId) => typedError<DebugCapabilities, IdeError>(__TAURI_INVOKE("debug_capabilities", { session })),
-	/**  Method breakpoints (all files); states aligned with `breakpoints`. */
-	debugSetFunctionBreakpoints: (breakpoints: FunctionBreakpoint[]) => typedError<BreakpointState[], IdeError>(__TAURI_INVOKE("debug_set_function_breakpoints", { breakpoints })),
-	/**  Field watchpoints; states aligned with `breakpoints`. */
-	debugSetDataBreakpoints: (breakpoints: DataBreakpoint[]) => typedError<BreakpointState[], IdeError>(__TAURI_INVOKE("debug_set_data_breakpoints", { breakpoints })),
-	debugDataBreakpointInfo: (session: DebugSessionId, container: number, name: string, frameId: number | null) => typedError<DataBreakpointInfo, IdeError>(__TAURI_INVOKE("debug_data_breakpoint_info", { session, container, name, frameId })),
-	/**  Attach to Process: the user's processes a debugger can attach to. */
-	debugAttachableProcesses: () => typedError<AttachableProcess[], IdeError>(__TAURI_INVOKE("debug_attachable_processes")),
-	/**
-	 *  Remote JVM Debug in listen mode: waits (cancellable through `request`) for the remote
-	 *  JVM to connect to `host:port`; returns the loopback port java-debug attaches to.
-	 */
-	debugListenForJvm: (request: RequestId, host: string, port: number) => typedError<number, IdeError>(__TAURI_INVOKE("debug_listen_for_jvm", { request, host, port })),
-	/**  HotSwap (Reload Changed Classes) in a java-debug session. */
-	debugRedefineClasses: (session: DebugSessionId) => typedError<HotSwapResult, IdeError>(__TAURI_INVOKE("debug_redefine_classes", { session })),
-	/**
-	 *  How to run `config` with coverage: the command to launch and where its report will be,
-	 *  or which tool is missing.
-	 */
-	coveragePrepare: (config: RunConfig_Deserialize) => typedError<CoveragePrepared_Serialize, IdeError>(__TAURI_INVOKE("coverage_prepare", { config })),
-	/**  Reads the report a coverage run left behind. */
-	coverageCollect: (report: CoverageReportSpec) => typedError<CoverageSuite, IdeError>(__TAURI_INVOKE("coverage_collect", { report })),
-	/**
-	 *  Reads a report collected elsewhere (CI): lcov, a Go cover profile or JaCoCo XML,
-	 *  with paths mapped into this project.
-	 */
-	coverageImport: (path: IpcPath) => typedError<CoverageSuite, IdeError>(__TAURI_INVOKE("coverage_import", { path })),
 	/**  The browsers installed on this machine. */
 	webBrowsers: () => typedError<Browser[], IdeError>(__TAURI_INVOKE("web_browsers")),
 	/**  The built-in server's URL for `path` (started on first use). */
 	webUrl: (path: IpcPath) => typedError<string, IdeError>(__TAURI_INVOKE("web_url", { path })),
 	/**  Opens `url` in `browser` (an id from `web_browsers`), or the default browser. */
 	webOpen: (url: string, browser: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("web_open", { url, browser })),
-	/**  How to run `config` under a sampling profiler, or which profiler is missing. */
-	profilerPrepare: (config: RunConfig_Deserialize) => typedError<ProfilePrepared_Serialize, IdeError>(__TAURI_INVOKE("profiler_prepare", { config })),
-	/**  Reads the profile a profiled run left behind. */
-	profilerCollect: (spec: ProfileSpec) => typedError<Profile, IdeError>(__TAURI_INVOKE("profiler_collect", { spec })),
 	/**
 	 *  Snapshot of process memory and subsystem sizes, summed over all projects.
 	 *  Async: the process walk runs on the blocking pool, not the main thread.
@@ -798,63 +627,6 @@ export const commands = {
 	 *  project, shrinks the in-memory index and compacts its on-disk cache.
 	 */
 	clearCaches: () => typedError<ClearCachesResult, IdeError>(__TAURI_INVOKE("clear_caches")),
-	/**
-	 *  Inspect Code: diagnostics of every file in `scope` that a language server
-	 *  serves. Files stream through `on_event` as they finish; ends with `Done`.
-	 */
-	inspectCode: (request: RequestId, scope: SearchScope, onEvent: Channel<InspectEvent>) => typedError<null, IdeError>(__TAURI_INVOKE("inspect_code", { request, scope, onEvent })),
-	/**  Locate Duplicates over the files of `scope`. */
-	analysisLocateDuplicates: (request: RequestId, scope: SearchScope, options: DuplicateOptions) => typedError<DuplicatesReport, IdeError>(__TAURI_INVOKE("analysis_locate_duplicates", { request, scope, options })),
-	/**  Languages Search Structurally supports (those with a bundled grammar). */
-	structuralLanguages: () => typedError<StructuralLanguage[], IdeError>(__TAURI_INVOKE("structural_languages")),
-	/**  Checks a structural search template (and language) while the user types. */
-	structuralValidate: (query: StructuralQuery) => typedError<null, IdeError>(__TAURI_INVOKE("structural_validate", { query })),
-	/**
-	 *  Search Structurally over `scope`; files with matches stream through
-	 *  `on_event`, ending with `Done`. With a replacement, matches carry their
-	 *  replacement text (applied by the UI as a workspace edit).
-	 */
-	structuralSearch: (request: RequestId, scope: SearchScope, query: StructuralQuery, onEvent: Channel<StructuralEvent>) => typedError<null, IdeError>(__TAURI_INVOKE("structural_search", { request, scope, query, onEvent })),
-	/**  Availability plus containers, images, volumes and networks. */
-	dockerSnapshot: (endpoint: DockerEndpoint) => typedError<DockerSnapshot, IdeError>(__TAURI_INVOKE("docker_snapshot", { endpoint })),
-	dockerContainerOp: (endpoint: DockerEndpoint, ids: string[], op: ContainerOp) => typedError<null, IdeError>(__TAURI_INVOKE("docker_container_op", { endpoint, ids, op })),
-	dockerRemove: (endpoint: DockerEndpoint, object: DockerObject, ids: string[], force: boolean) => typedError<null, IdeError>(__TAURI_INVOKE("docker_remove", { endpoint, object, ids, force })),
-	/**  Pretty-printed `docker inspect` JSON. */
-	dockerInspect: (endpoint: DockerEndpoint, object: DockerObject, id: string) => typedError<string, IdeError>(__TAURI_INVOKE("docker_inspect", { endpoint, object, id })),
-	/**  Streams a container's log lines until it stops or the request is cancelled. */
-	dockerLogs: (request: RequestId, endpoint: DockerEndpoint, id: string, tail: number, follow: boolean, timestamps: boolean, onLine: Channel<DockerLogLine>) => typedError<null, IdeError>(__TAURI_INVOKE("docker_logs", { request, endpoint, id, tail, follow, timestamps, onLine })),
-	/**  Follows `docker events` until the daemon goes away or the request is cancelled. */
-	dockerEvents: (request: RequestId, endpoint: DockerEndpoint, onEvent: Channel<DockerEvent>) => typedError<null, IdeError>(__TAURI_INVOKE("docker_events", { request, endpoint, onEvent })),
-	/**  `docker pull`, logging in first when a saved registry with a password serves the image. */
-	dockerPull: (request: RequestId, endpoint: DockerEndpoint, reference: string, onOutput: Channel<string>) => typedError<null, IdeError>(__TAURI_INVOKE("docker_pull", { request, endpoint, reference, onOutput })),
-	dockerPrune: (request: RequestId, endpoint: DockerEndpoint, target: PruneTarget, onOutput: Channel<string>) => typedError<null, IdeError>(__TAURI_INVOKE("docker_prune", { request, endpoint, target, onOutput })),
-	/**  `docker compose` start / stop / restart / down of a project found through labels. */
-	dockerComposeOp: (request: RequestId, endpoint: DockerEndpoint, project: string, files: string[], workingDir: string | null, op: ComposeOp, onOutput: Channel<string>) => typedError<null, IdeError>(__TAURI_INVOKE("docker_compose_op", { request, endpoint, project, files, workingDir, op, onOutput })),
-	/**  Docker connections and registries (app-wide). */
-	dockerSettings: () => typedError<DockerSettings, IdeError>(__TAURI_INVOKE("docker_settings")),
-	dockerSaveSettings: (settings: DockerSettings) => typedError<null, IdeError>(__TAURI_INVOKE("docker_save_settings", { settings })),
-	/**  Saves (`None`: forgets) a registry's password. */
-	dockerSetRegistryPassword: (id: string, password: string | null) => typedError<null, IdeError>(__TAURI_INVOKE("docker_set_registry_password", { id, password })),
-	/**  Test login to `registry` (`password`, else the saved one) through `endpoint`'s daemon. */
-	dockerRegistryLogin: (endpoint: DockerEndpoint, registry: DockerRegistry, password: string | null) => typedError<string, IdeError>(__TAURI_INVOKE("docker_registry_login", { endpoint, registry, password })),
-	/**
-	 *  Environment for a Docker run configuration's command line: selects `endpoint`'s
-	 *  daemon and puts the docker executable on `PATH`.
-	 */
-	dockerRunEnv: (endpoint: DockerEndpoint) => typedError<{ [key in string]: string }, IdeError>(__TAURI_INVOKE("docker_run_env", { endpoint })),
-	ghAvailability: () => typedError<GhAvailability, IdeError>(__TAURI_INVOKE("gh_availability")),
-	/**  A GitHub GraphQL / REST call through `gh api`; returns the response body. */
-	ghApi: (request: GhApiRequest) => typedError<string, IdeError>(__TAURI_INVOKE("gh_api", { request })),
-	ghPrList: (query: PrListQuery) => typedError<PullRequestSummary[], IdeError>(__TAURI_INVOKE("gh_pr_list", { query })),
-	ghPrView: (number: number) => typedError<PullRequestDetails, IdeError>(__TAURI_INVOKE("gh_pr_view", { number })),
-	ghPrReviewComments: (number: number) => typedError<PrReviewComment[], IdeError>(__TAURI_INVOKE("gh_pr_review_comments", { number })),
-	ghPrCheckout: (request: RequestId, number: number, onOutput: Channel<string>) => typedError<null, IdeError>(__TAURI_INVOKE("gh_pr_checkout", { request, number, onOutput })),
-	/**  Creates a pull request from the current branch (pushing it first when asked); returns its URL. */
-	ghPrCreate: (request: RequestId, pr: CreatePullRequest, onOutput: Channel<string>) => typedError<string, IdeError>(__TAURI_INVOKE("gh_pr_create", { request, pr, onOutput })),
-	ghPrReview: (number: number, event: ReviewEvent, body: string) => typedError<null, IdeError>(__TAURI_INVOKE("gh_pr_review", { number, event, body })),
-	ghPrComment: (number: number, body: string) => typedError<null, IdeError>(__TAURI_INVOKE("gh_pr_comment", { number, body })),
-	/**  Fetches what is missing to diff a pull request locally; returns the revisions to compare. */
-	ghPrPrepareDiff: (request: RequestId, number: number, headOid: string, baseOid: string, baseRef: string, nameWithOwner: string, onOutput: Channel<string>) => typedError<PrDiffRevisions, IdeError>(__TAURI_INVOKE("gh_pr_prepare_diff", { request, number, headOid, baseOid, baseRef, nameWithOwner, onOutput })),
 	/**  Test Connection: connects with `config` as edited (not necessarily saved). */
 	sshTest: (config: SshConfiguration, secret: string | null) => typedError<string, IdeError>(__TAURI_INVOKE("ssh_test", { config, secret })),
 	/**  Remembers the password / passphrase of configuration `id` (`None` forgets it). */
@@ -863,39 +635,12 @@ export const commands = {
 	sshNeedsSecret: (id: string) => typedError<boolean, IdeError>(__TAURI_INVOKE("ssh_needs_secret", { id })),
 	/**  Trusts the host key that failed the last connection of configuration `id`. */
 	sshTrustHost: (id: string) => typedError<null, IdeError>(__TAURI_INVOKE("ssh_trust_host", { id })),
-	/**  Ids of the configurations with an open connection. */
-	sshConnected: () => __TAURI_INVOKE<string[]>("ssh_connected"),
-	sshDisconnect: (id: string) => __TAURI_INVOKE<void>("ssh_disconnect", { id }),
 	/**  Answers an `IdeEvent::Askpass` prompt (`None`: cancelled); every window drops it. */
 	sshAskpassAnswer: (id: number, answer: string | null, remember: boolean) => __TAURI_INVOKE<void>("ssh_askpass_answer", { id, answer, remember }),
 	/**  Settings › Git › Saved credentials: `scheme://host` of every saved entry. */
 	gitCredentials: () => __TAURI_INVOKE<string[]>("git_credentials"),
 	/**  Forgets the credential of `key` (a `git_credentials` entry). */
 	gitCredentialForget: (key: string) => __TAURI_INVOKE<void>("git_credential_forget", { key }),
-	/**
-	 *  Tools › Start SSH Session: the system `ssh` command line for configuration `id`
-	 *  (run in a terminal tab, so prompts and host-key questions are answered there).
-	 */
-	sshTerminalCommand: (id: string) => typedError<SshTerminalCommand, IdeError>(__TAURI_INVOKE("ssh_terminal_command", { id })),
-	deployCoverage: (paths: IpcPath[]) => typedError<DeploymentCoverage[], IdeError>(__TAURI_INVOKE("deploy_coverage", { paths })),
-	deployUpload: (paths: IpcPath[], server: string | null, request: RequestId) => typedError<TransferReport, IdeError>(__TAURI_INVOKE("deploy_upload", { paths, server, request })),
-	deployDownload: (paths: IpcPath[], server: string | null, request: RequestId) => typedError<TransferReport, IdeError>(__TAURI_INVOKE("deploy_download", { paths, server, request })),
-	deployDeleteRemote: (paths: IpcPath[], server: string | null) => typedError<TransferReport, IdeError>(__TAURI_INVOKE("deploy_delete_remote", { paths, server })),
-	deployCompare: (path: IpcPath, server: string | null, request: RequestId) => typedError<SyncEntry[], IdeError>(__TAURI_INVOKE("deploy_compare", { path, server, request })),
-	deploySync: (steps: SyncStep[], server: string | null, request: RequestId) => typedError<TransferReport, IdeError>(__TAURI_INVOKE("deploy_sync", { steps, server, request })),
-	deployInfo: (path: IpcPath, server: string | null) => typedError<{
-	server: string,
-	remotePath: string,
-	webUrl: string | null,
-} | null, IdeError>(__TAURI_INVOKE("deploy_info", { path, server })),
-	deployServerRoot: (server: string) => typedError<string, IdeError>(__TAURI_INVOKE("deploy_server_root", { server })),
-	remoteList: (connection: FsConnection, path: string) => typedError<RemoteEntry[], IdeError>(__TAURI_INVOKE("remote_list", { connection, path })),
-	deployTestConnection: (connection: FsConnection, path: string) => typedError<null, IdeError>(__TAURI_INVOKE("deploy_test_connection", { connection, path })),
-	remoteOpen: (connection: FsConnection, path: string) => typedError<IpcPath, IdeError>(__TAURI_INVOKE("remote_open", { connection, path })),
-	remoteOf: (path: IpcPath) => __TAURI_INVOKE<[FsConnection, string] | null>("remote_of", { path }),
-	remoteDelete: (connection: FsConnection, path: string) => typedError<null, IdeError>(__TAURI_INVOKE("remote_delete", { connection, path })),
-	remoteMkdir: (connection: FsConnection, path: string) => typedError<null, IdeError>(__TAURI_INVOKE("remote_mkdir", { connection, path })),
-	remoteRename: (connection: FsConnection, from: string, to: string) => typedError<null, IdeError>(__TAURI_INVOKE("remote_rename", { connection, from, to })),
 	/**  Browse before connecting, using the desktop's SSH configuration even in a remote window. */
 	remoteBootstrapList: (ssh: string, path: string) => typedError<RemoteEntry[], IdeError>(__TAURI_INVOKE("remote_bootstrap_list", { ssh, path })),
 	/**
@@ -1020,12 +765,6 @@ export type ApplyOutcome = {
 	conflicts: string[],
 };
 
-/**  `groupId:artifactId` of a dependency. */
-export type ArtifactKey = {
-	groupId: string,
-	artifactId: string,
-};
-
 /**  What an askpass prompt asks for. */
 export type AskpassKind = 
 /**  Password or passphrase: hidden input. */
@@ -1034,21 +773,6 @@ export type AskpassKind =
 "text" | 
 /**  Yes / no (an unknown host key); answered with `yes` or `no`. */
 "confirm";
-
-export type AttachKind = "java" | "node" | "python" | "go" | "native";
-
-export type AttachableProcess = {
-	pid: number,
-	/**  Executable name. */
-	name: string,
-	commandLine: string,
-	kind: AttachKind,
-	/**  Debug adapter that attaches to it. */
-	adapter: string,
-	/**  Debug port the process listens on (JDWP, `--inspect`, `debugpy --listen`). */
-	host: string | null,
-	port: number | null,
-};
 
 /**  Editor › General › Auto Import (LSP code actions). */
 export type AutoImportSettings = {
@@ -1062,16 +786,6 @@ export type AutoUpload = "never" |
 "onExplicitSave" | 
 /**  Every save, including autosave and external changes. */
 "always";
-
-/**  A step run before a configuration launches; a failing step aborts the launch. */
-export type BeforeLaunchTask = {
-	/**
-	 *  `run` (another configuration, `target` = its id) | `build` | `tool` (external tool id) |
-	 *  `command` (a shell command line) | `toolWindow` (tool window id).
-	 */
-	kind: string,
-	target?: string,
-};
 
 export type BlameLine = {
 	commit: string,
@@ -1112,37 +826,12 @@ export type BreadcrumbsSettings = {
 	disabledLanguages?: string[],
 };
 
-export type Breakpoint = {
-	line: number,
-	condition: string | null,
-	hitCondition: string | null,
-	/**  Logpoint message; when set the breakpoint logs instead of suspending. */
-	logMessage: string | null,
-	enabled: boolean,
-};
-
-export type BreakpointState = {
-	line: number,
-	verified: boolean,
-	message: string | null,
-};
-
 /**  An installed browser. */
 export type Browser = {
 	/**  `chrome`, `firefox`, `safari`, `edge`, `brave`, `chromium`. */
 	id: string,
 	name: string,
 };
-
-export type BuildEvent = 
-/**  The build starts: its tree root. */
-{ kind: "started"; system: BuildSystem; title: string } | 
-/**  A command starts (echoed in the console). */
-{ kind: "step"; command: string; cwd: IpcPath } | 
-/**  Console output (one or more lines, each ending in `\n`). */
-{ kind: "output"; text: string; stderr: boolean } | { kind: "message"; message: BuildMessage } | 
-/**  Status bar progress; `fraction` 0..1 or `None` when indeterminate. */
-{ kind: "progress"; message: string; fraction: number | null };
 
 export type BuildInfo = {
 	version: string,
@@ -1156,43 +845,11 @@ export type BuildInfo = {
 	updates: boolean,
 };
 
-export type BuildKind = 
-/**  Incremental compile of sources and tests. */
-"build" | 
-/**  Clean, then build. */
-"rebuild" | 
-/**  Package the outputs (`package`, `assemble`, `cargo build --release`, `npm run build`). */
-"artifacts";
-
-/**  A compiler message in IDE coordinates (0-based line, UTF-16 column). */
-export type BuildMessage = {
-	severity: Severity,
-	text: string,
-	/**  Absolute path; `None` for messages about the build itself. */
-	path: IpcPath | null,
-	range: Range | null,
-	code: string | null,
-};
-
 /**  The build systems of a project; `None` when the project does not use one. */
 export type BuildModel = {
 	maven: MavenModel | null,
 	gradle: GradleModel | null,
 };
-
-export type BuildResult = {
-	system: BuildSystem,
-	title: string,
-	success: boolean,
-	errors: number,
-	warnings: number,
-	durationMs: number | null,
-	messages: BuildMessage[],
-};
-
-export type BuildSystem = "maven" | "gradle" | "cargo" | "go" | "typescript";
-
-export type BuildTool = "maven" | "gradle";
 
 /**  A slice of a file: `data` is base64; `total` is the file size. */
 export type ByteRange = {
@@ -1266,8 +923,6 @@ export type ChannelFrame = {
 	id: number,
 	data: string,
 };
-
-export type CheckStatus = "pending" | "success" | "failure" | "cancelled" | "skipped" | "neutral";
 
 /**
  *  How Checkout treats local changes that the switch would overwrite (IDEA's Smart
@@ -1542,10 +1197,6 @@ export type CompletionSettings = {
 	parameterInfoDelay?: number,
 };
 
-export type ComposeOp = "start" | "stop" | "restart" | 
-/**  Stops and removes the project's containers and networks. */
-"down";
-
 /**  Build, Execution, Deployment › Console. */
 export type ConsoleSettings = {
 	softWrap?: boolean,
@@ -1555,48 +1206,6 @@ export type ConsoleSettings = {
 	encoding?: string,
 	/**  Consecutive lines containing any of these are folded. */
 	foldPatterns?: string[],
-};
-
-export type ContainerOp = "start" | "stop" | "restart" | "pause" | "unpause" | "kill";
-
-export type CoveragePrepared = CoveragePrepared_Serialize | CoveragePrepared_Deserialize;
-
-export type CoveragePrepared_Deserialize = ({ status: "ready"; runner: string; 
-/**  What to launch instead of the configuration. */
-launch: RunConfig_Deserialize; report: CoverageReportSpec }) & { install?: never; message?: never; reason?: never; tool?: never } | ({ status: "missingTool"; tool: string; message: string; install: InstallCommand | null }) & { launch?: never; reason?: never; report?: never; runner?: never } | ({ status: "unsupported"; reason: string }) & { install?: never; launch?: never; message?: never; report?: never; runner?: never; tool?: never };
-
-export type CoveragePrepared_Serialize = ({ status: "ready"; runner: string; 
-/**  What to launch instead of the configuration. */
-launch: RunConfig_Serialize; report: CoverageReportSpec }) & { install?: never; message?: never; reason?: never; tool?: never } | ({ status: "missingTool"; tool: string; message: string; install: InstallCommand | null }) & { launch?: never; reason?: never; report?: never; runner?: never } | ({ status: "unsupported"; reason: string }) & { install?: never; launch?: never; message?: never; report?: never; runner?: never; tool?: never };
-
-/**  Where the report of a prepared run will be, and how to read it. */
-export type CoverageReportSpec = 
-/**  An lcov tracefile; relative `SF:` paths resolve against `base`. */
-{ kind: "lcov"; runner: string; path: IpcPath; base: IpcPath } | 
-/**  `go test -coverprofile`; import paths under `module` map to `module_dir`. */
-{ kind: "goProfile"; path: IpcPath; module: string; moduleDir: IpcPath } | 
-/**  Every JaCoCo XML report (Maven `target/site/jacoco`, Gradle `build/reports/jacoco`) under `dir`. */
-{ kind: "jacoco"; dir: IpcPath } | 
-/**  The tool's raw data is exported to lcov by `argv` first (coverage.py: `… -m coverage lcov -o <lcov>`). */
-{ kind: "exported"; runner: string; argv: string[]; cwd: IpcPath; env: { [key in string]: string }; lcov: IpcPath };
-
-/**  One coverage run's report. */
-export type CoverageSuite = {
-	/**  Tool that produced it, e.g. `cargo-llvm-cov`, `JaCoCo`. */
-	runner: string,
-	/**  Whether branch counts are meaningful (lcov `BRDA`, JaCoCo); Go profiles only have blocks. */
-	hasBranches: boolean,
-	/**  Sorted by path. */
-	files: FileCoverage[],
-};
-
-export type CreatePullRequest = {
-	title: string,
-	body: string,
-	base: string,
-	draft: boolean,
-	/**  Push the current branch (setting its upstream) before creating. */
-	push: boolean,
 };
 
 /**  Imported editor colour scheme on top of a built-in base. */
@@ -1630,26 +1239,6 @@ export type CustomKeymap = {
 	overrides?: { [key in string]: string[] },
 };
 
-/**
- *  A field watchpoint (DAP data breakpoint) on a `dataId` from [`DebugManager::data_breakpoint_info`]
- *  (java-debug ids, `Class#field`, stay valid across sessions).
- */
-export type DataBreakpoint = {
-	dataId: string,
-	/**  `read`, `write` or `readWrite` (adapter default when unset). */
-	accessType: string | null,
-	condition: string | null,
-	hitCondition: string | null,
-	enabled: boolean,
-};
-
-/**  Answer of `dataBreakpointInfo`: `data_id` is `None` when the value cannot be watched. */
-export type DataBreakpointInfo = {
-	dataId: string | null,
-	description: string,
-	accessTypes: string[],
-};
-
 /**  System Settings › Date Formats (Git log, Local History, blame). */
 export type DateFormatSettings = {
 	/**  Use `pattern` / `use24_hour` instead of the system locale's format. */
@@ -1659,21 +1248,6 @@ export type DateFormatSettings = {
 	use24Hour?: boolean,
 	/**  "Today", "Yesterday", "5 min ago". */
 	pretty?: boolean,
-};
-
-/**  What a session's adapter supports, for enabling actions. */
-export type DebugCapabilities = {
-	restartFrame: boolean,
-	stepInTargets: boolean,
-	functionBreakpoints: boolean,
-	dataBreakpoints: boolean,
-	/**  `setVariable` or `setExpression`. */
-	setValue: boolean,
-	conditionalBreakpoints: boolean,
-	hitConditionalBreakpoints: boolean,
-	logPoints: boolean,
-	/**  HotSwap ("Reload Changed Classes"): java-debug's `redefineClasses` request. */
-	hotCodeReplace: boolean,
 };
 
 export type DebugEvent = 
@@ -1720,34 +1294,6 @@ export type DeletedBranch = {
 	upstream: string | null,
 	/**  It was not fully merged: its own commits are now unreachable from any branch. */
 	unmerged: boolean,
-};
-
-export type DependencyUpdate = {
-	latest: string,
-	replacement: string,
-};
-
-export type DependencyVersions = {
-	dependency: ManifestDependency,
-	versions: string[],
-	update: DependencyUpdate | null,
-};
-
-/**  Where a local file is deployed. */
-export type DeployedPath = {
-	server: string,
-	remotePath: string,
-	webUrl: string | null,
-};
-
-/**
- *  Mapping eligibility uses a common synthetic server root: mapping and exclusion
- *  paths are both relative to that root, so checking never opens a connection.
- */
-export type DeploymentCoverage = {
-	server: string,
-	paths: string[],
-	skipped: TransferError[],
 };
 
 export type DeploymentMapping = {
@@ -1844,125 +1390,6 @@ export type DivergedLocal =
 /**  An open document buffer. */
 export type DocId = number;
 
-/**  Whether docker can be used, and why not. */
-export type DockerAvailability = { kind: "ready"; clientVersion: string; serverVersion: string; 
-/**  Active docker context (`default`, `orbstack`, `desktop-linux`…). */
-context: string | null } | 
-/**  No `docker` executable was found. */
-{ kind: "notInstalled" } | 
-/**  The CLI is there but cannot reach a daemon (not started, wrong context…). */
-{ kind: "daemonDown"; message: string; context: string | null };
-
-export type DockerConnection = {
-	id: string,
-	name: string,
-	endpoint: DockerEndpoint,
-};
-
-export type DockerContainer = {
-	id: string,
-	name: string,
-	image: string,
-	command: string,
-	/**  `running`, `exited`, `paused`, `created`, `restarting`, `removing`, `dead`. */
-	state: string,
-	/**  Human status, e.g. `Up 2 hours (healthy)`. */
-	status: string,
-	ports: string,
-	createdAt: string,
-	/**  `com.docker.compose.project` label. */
-	composeProject: string | null,
-	composeService: string | null,
-	/**  `com.docker.compose.project.working_dir` label. */
-	composeWorkingDir: string | null,
-	/**  `com.docker.compose.project.config_files` label (comma-separated in docker). */
-	composeFiles: string[],
-};
-
-/**  Which daemon a docker command talks to. */
-export type DockerEndpoint = 
-/**  Whatever the CLI is configured for (`DOCKER_HOST`, the current context). */
-{ kind: "default" } | 
-/**  A local daemon socket, e.g. `/var/run/docker.sock` (or a `npipe://` URL on Windows). */
-{ kind: "socket"; path: string } | 
-/**
- *  A remote daemon, e.g. `tcp://build:2376` or `ssh://me@build`; with TLS when
- *  `tls_cert_dir` holds `ca.pem`, `cert.pem` and `key.pem`.
- */
-{ kind: "tcp"; host: string; tlsCertDir: string | null } | 
-/**  A named `docker context`. */
-{ kind: "context"; name: string };
-
-/**  One relevant `docker events` entry. */
-export type DockerEvent = {
-	/**  `container`, `image`, `volume`, `network`. */
-	object: string,
-	action: string,
-	id: string,
-	name: string | null,
-};
-
-export type DockerImage = {
-	id: string,
-	/**  `<none>` for dangling images. */
-	repository: string,
-	tag: string,
-	size: string,
-	createdSince: string,
-};
-
-/**  A line of `docker logs` output. */
-export type DockerLogLine = {
-	stderr: boolean,
-	text: string,
-};
-
-export type DockerNetwork = {
-	id: string,
-	name: string,
-	driver: string,
-	scope: string,
-	composeProject: string | null,
-};
-
-export type DockerObject = "container" | "image" | "volume" | "network";
-
-/**  A registry to log in to (Docker Hub, GHCR, a private one). The password is stored separately. */
-export type DockerRegistry = {
-	id: string,
-	name: string,
-	/**  `docker.io`, `ghcr.io`, `registry.example.com:5000`. */
-	address: string,
-	username?: string,
-};
-
-export type DockerSettings = {
-	connections?: DockerConnection[],
-	registries?: DockerRegistry[],
-};
-
-/**  Everything the Services tree shows, fetched in one go. */
-export type DockerSnapshot = {
-	availability: DockerAvailability,
-	/**  The docker executable in use, e.g. for `docker exec -it` in a terminal. */
-	executable: string | null,
-	containers: DockerContainer[],
-	images: DockerImage[],
-	volumes: DockerVolume[],
-	networks: DockerNetwork[],
-	/**  Lists that failed although the daemon answered (shown, not fatal). */
-	errors: string[],
-	/**  Global CLI options selecting the connection's daemon (for `docker exec` in a terminal). */
-	globalArgs?: string[],
-};
-
-export type DockerVolume = {
-	name: string,
-	driver: string,
-	mountpoint: string,
-	composeProject: string | null,
-};
-
 /**  What the UI needs to show an opened document. */
 export type DocumentInfo = {
 	id: DocId,
@@ -2006,34 +1433,6 @@ export type DocumentLink = {
 	/**  Any other target (`https:`, …). */
 	url: string | null,
 	tooltip: string | null,
-};
-
-export type DuplicateGroup = {
-	tokens: number,
-	/**  Lines of the first fragment. */
-	lines: number,
-	language: LanguageId,
-	fragments: Fragment[],
-};
-
-export type DuplicateOptions = {
-	/**  Shortest duplicate reported, in tokens. */
-	minTokens: number,
-	/**  Treat all identifiers as equal (finds copies with renamed variables). */
-	anonymizeIdentifiers: boolean,
-	/**  Treat all literals as equal. */
-	anonymizeLiterals: boolean,
-};
-
-export type DuplicatesReport = {
-	groups: DuplicateGroup[],
-	/**  Files tokenised (files without a grammar are skipped). */
-	files: number,
-	tokens: number,
-	/**  More groups were found than reported. */
-	truncated: boolean,
-	cancelled: boolean,
-	elapsedMs: number,
 };
 
 /**  An item of a frontend-listed menu slot. */
@@ -2272,16 +1671,6 @@ export type ErrorKind = "notFound" | "alreadyExists" | "permissionDenied" | "inv
 /**  A required external tool (language server, git, debugger) is unavailable. */
 "unavailable" | "io" | "protocol" | "internal";
 
-/**  An exception breakpoint filter offered by an adapter (`exceptionBreakpointFilters`). */
-export type ExceptionFilter = {
-	filter: string,
-	label: string,
-	description: string | null,
-	/**  Enabled unless the user chose otherwise. */
-	default: boolean,
-	supportsCondition: boolean,
-};
-
 /**  Result of `expression_at` (Extract Variable / Introduce … fallback). */
 export type ExpressionAt = {
 	/**
@@ -2325,16 +1714,6 @@ export type ExternalTool = {
 	workingDirectory?: string,
 	synchronizeAfter?: boolean,
 	openConsole?: boolean,
-};
-
-export type FileCoverage = {
-	path: IpcPath,
-	/**  Sorted by line. */
-	lines: LineCoverage[],
-	linesTotal: number,
-	linesCovered: number,
-	branchesTotal: number,
-	branchesCovered: number,
 };
 
 export type FileEdit = { kind: "edit"; path: IpcPath; edits: TextEdit[] } | { kind: "create"; path: IpcPath; overwrite: boolean } | { kind: "rename"; from: IpcPath; to: IpcPath } | { kind: "delete"; path: IpcPath; recursive: boolean };
@@ -2431,11 +1810,6 @@ export type FileSettings = {
 	fileTypeOverrides?: { [key in string]: string },
 };
 
-export type FileStamp = {
-	size: number,
-	mtime: number | null,
-};
-
 export type FileStatus = {
 	path: IpcPath,
 	relPath: string,
@@ -2501,29 +1875,6 @@ export type FormatOptions = {
 	onSave?: boolean,
 };
 
-/**  One occurrence of a duplicated code fragment. */
-export type Fragment = {
-	path: IpcPath,
-	relPath: string,
-	range: Range,
-	/**  The fragment's source, from the start of its first line (capped). */
-	text: string,
-};
-
-export type FsConnection = { kind: "sftp"; ssh: string } | { kind: "local" };
-
-/**
- *  A method breakpoint (DAP function breakpoint). `name` uses the adapter's syntax:
- *  `pkg.Class#method` for java-debug, `pkg.Func` / `pkg.(*T).Method` for Delve, a plain
- *  function name for debugpy and LLDB.
- */
-export type FunctionBreakpoint = {
-	name: string,
-	condition: string | null,
-	hitCondition: string | null,
-	enabled: boolean,
-};
-
 export type GeneralSettings = {
 	reopenLastProject?: boolean,
 	confirmExit?: boolean,
@@ -2542,45 +1893,6 @@ export type GeneralSettings = {
 	powerSaveMode?: boolean,
 	/**  File › Rename Project… (project layer): the name shown for the project; empty = its folder name. */
 	projectName?: string,
-};
-
-/**
- *  A GitHub API call through `gh api`: GraphQL (`endpoint` `graphql`, `body`
- *  `{"query", "variables"}`) or REST (`repos/{owner}/{repo}/…`, gh fills in the
- *  placeholders from the project's remote).
- */
-export type GhApiRequest = {
-	/**  `GET`, `POST`, `PATCH`, `PUT`, `DELETE`. */
-	method: string,
-	endpoint: string,
-	/**  JSON request body, sent on stdin. */
-	body: string | null,
-	/**  Follow REST `Link` pages; the result is the array of all pages (`--slurp`). */
-	paginate: boolean,
-};
-
-/**  Whether pull requests can be shown for the project, and why not. */
-export type GhAvailability = { kind: "ready"; repo: GhRepo; 
-/**  The signed-in user. */
-login: string | null } | 
-/**  No `gh` executable was found. */
-{ kind: "notInstalled" } | 
-/**  `gh auth login` has not been run (or the token expired). */
-{ kind: "notLoggedIn"; message: string } | 
-/**  The project has no GitHub remote (or is not a git repository). */
-{ kind: "notGitHub"; message: string } | { kind: "error"; message: string };
-
-export type GhRepo = {
-	/**  `owner/name`. */
-	nameWithOwner: string,
-	url: string,
-	defaultBranch: string | null,
-	/**  Merge methods the repository allows (all of them when gh does not say). */
-	mergeCommitAllowed: boolean,
-	squashMergeAllowed: boolean,
-	rebaseMergeAllowed: boolean,
-	/**  The signed-in user's permission: `ADMIN`, `MAINTAIN`, `WRITE`, `TRIAGE`, `READ`; empty when unknown. */
-	viewerPermission: string,
 };
 
 export type GitExecutableInfo = {
@@ -2751,13 +2063,6 @@ export type HistoryKind =
  *  for everything under `path` (the project root); has no content.
  */
 "label";
-
-/**  Result of [`DebugManager::redefine_classes`]. */
-export type HotSwapResult = {
-	/**  Fully qualified names of the classes reloaded (empty: nothing had changed). */
-	changedClasses: string[],
-	errorMessage: string | null,
-};
 
 export type Hover = {
 	contents: Markup,
@@ -2950,30 +2255,6 @@ export type InlineCompletionSettings = {
 	disabledLanguages?: string[],
 };
 
-export type InspectEvent = 
-/**  Files about to be inspected. */
-{ type: "started"; total: number } | 
-/**  A file finished (with or without problems). */
-{ type: "file"; file: InspectedFile; done: number } | { type: "done"; summary: InspectSummary };
-
-export type InspectSummary = {
-	/**  Files inspected by a language server. */
-	files: number,
-	problems: number,
-	/**  Files in scope no language server serves. */
-	skipped: number,
-	/**  Files whose server failed or never became ready. */
-	failed: number,
-	cancelled: boolean,
-	elapsedMs: number,
-};
-
-export type InspectedFile = {
-	path: IpcPath,
-	relPath: string,
-	diagnostics: Diagnostic[],
-};
-
 /**  IDEA's highlighting levels. */
 export type InspectionLevel = "error" | "warning" | "weakWarning" | "serverProblem" | "typo" | 
 /**  Reported (Problems, Inspect Code) but not highlighted in the editor. */
@@ -3006,13 +2287,6 @@ export type InspectionSettings = {
 	projectProfiles?: { [key in string]: CustomInspectionProfile },
 };
 
-/**  A command line that installs a missing tool (run in the Run tool window). */
-export type InstallCommand = {
-	command: string,
-	args: string[],
-	cwd: IpcPath | null,
-};
-
 /**  Streamed install progress. */
 export type InstallEvent = 
 /**  One line of installer output. */
@@ -3038,45 +2312,6 @@ export type IssueLink = {
 	pattern?: string,
 	/**  Link with `$0` (whole match) / `$1`… (groups) placeholders. */
 	link?: string,
-};
-
-/**  Result of `java/buildWorkspace` (jdtls `BuildWorkspaceStatus`). */
-export type JavaBuildStatus = "failed" | "succeeded" | 
-/**  Compiled, but some project has compile errors. */
-"withErrors" | "cancelled";
-
-/**  One error diagnostic; `line` / `column` are 1-based for display. */
-export type JavaCompileError = {
-	path: IpcPath,
-	line: number,
-	column: number,
-	message: string,
-};
-
-/**  Everything needed to launch a class of a module: build outcome, classpath and JDK. */
-export type JavaLaunchInfo = {
-	/**  `None` when no build was requested. */
-	build: JavaBuildStatus | null,
-	projectRoot: IpcPath | null,
-	classPaths: string[],
-	modulePaths: string[],
-	/**  Path list separator of the host that runs the JVM. */
-	pathListSeparator: string,
-	/**  JDK home jdtls compiles the project against. */
-	javaHome: IpcPath | null,
-	/**  The `java` launcher to use (filled in by the caller from the installed JDKs). */
-	javaExec: string | null,
-	/**
-	 *  How a launcher that builds the command line itself must shorten it (java-debug's
-	 *  `shortenCommandLine`: `none` | `jarmanifest` | `argfile`; filled in by the caller).
-	 */
-	shortenCommandLine: string | null,
-	/**  First compile errors of the workspace when the build had errors. */
-	errors: JavaCompileError[],
-	/**  All compile errors (`errors` is capped). */
-	errorCount: number,
-	/**  Likely causes of the errors worth telling the user (e.g. a missing Lombok agent). */
-	hints: string[],
 };
 
 export type JavaSettings = {
@@ -3295,56 +2530,6 @@ export type Launch = {
 	newProjects: boolean,
 };
 
-export type LaunchConfig = {
-	name: string,
-	/**  DAP adapter name from `languages/*.toml` (or a built-in: codelldb, debugpy, js-debug, delve, netcoredbg). */
-	adapter: string,
-	/**  `launch` or `attach`. */
-	request: string,
-	program: string | null,
-	args: string[],
-	cwd: IpcPath | null,
-	env: { [key in string]: string },
-	/**
-	 *  Adapter specific extra arguments as JSON text, merged into the launch request.
-	 *  A `"cargo": {"args": [...], "filter": {"name", "kind"}}` entry builds with cargo
-	 *  and launches the produced executable; `"debugServer": <port>` connects to an
-	 *  adapter already listening on that local port (e.g. java-debug inside jdtls)
-	 *  instead of starting one, `"debugServer": "host:port"` to one on another machine
-	 *  (`dlv --headless`, `debugpy --listen`).
-	 */
-	extraJson: string | null,
-};
-
-/**  One SDK or library with its source folders (`< Python 3.12 (.venv) >`). */
-export type LibraryGroup = {
-	/**  Display name, e.g. `Python 3.12 (.venv)`. */
-	name: string,
-	/**  `python` | `jdk` | `nodeModules` | `nodeCore` | `rust` | `cargo` | `go` | `goModules` | `maven` | `gradle`. */
-	kind: string,
-	roots: LibraryRoot[],
-};
-
-export type LibraryRoot = {
-	/**
-	 *  Folder name, e.g. `python3.12` or `site-packages`, the package (`serde 1.0.200`)
-	 *  or the archive (`src.zip`, `guava-33.0.0-jre-sources.jar`).
-	 */
-	name: string,
-	/**  A folder, or an archive's root (`<archive>!`). */
-	path: IpcPath,
-};
-
-/**  Coverage of one source line. */
-export type LineCoverage = {
-	/**  0-based. */
-	line: number,
-	/**  Execution count (JaCoCo: covered instructions); 0 = not covered. */
-	hits: number,
-	branchesTotal: number,
-	branchesCovered: number,
-};
-
 export type LineEnding = "lf" | "crLf" | "cr";
 
 /**  Line-level change against HEAD for editor gutter markers (0-based lines). */
@@ -3404,21 +2589,6 @@ export type LocalSymbol = {
 export type Locals = 
 /**  No identifier at the position. */
 { status: "noIdentifier" } | { status: "notLocal"; name: string; range: Range; reason: NotLocalReason } | { status: "local"; symbol: LocalSymbol };
-
-/**  One looked-up executable. */
-export type LocatedTool = {
-	name: string,
-	/**  Absolute path, `None` when not found. */
-	path: IpcPath | null,
-	/**  `22.6.0`, `1.85.0-nightly`; only for tools whose version matters. */
-	version: string | null,
-};
-
-/**  Executables found for "run this file", and where single files are compiled to. */
-export type LocatedTools = {
-	tools: LocatedTool[],
-	compileDir: IpcPath,
-};
 
 /**
  *  A range inside a specific file, or inside a virtual document (library
@@ -3496,14 +2666,6 @@ export type MainToolbarSettings = {
 	right?: string[],
 	/**  Widgets the user removed. */
 	hidden?: string[],
-};
-
-export type ManifestDependency = {
-	package: string,
-	requirement: string,
-	/**  UTF-16 offsets of the string's contents (quotes excluded). */
-	from: number,
-	to: number,
 };
 
 export type Markup = {
@@ -3677,13 +2839,6 @@ export type MergeVersions = {
 	merged: string | null,
 };
 
-/**  Per-function totals (a recursive function's samples count once in `total`). */
-export type MethodStat = {
-	frame: number,
-	selfWeight: number | null,
-	total: number | null,
-};
-
 /**  Result of `node_at`: the smallest named node covering a range, with its ancestors. */
 export type NodeAt = {
 	node: SyntaxNode,
@@ -3712,43 +2867,6 @@ export type NotLocalReason =
  *  member, or declared in a way the query does not cover.
  */
 "unresolved";
-
-export type NotebookCell = {
-	id: string,
-	cellType: string,
-	source: string,
-	metadata: unknown,
-	outputs: unknown[],
-	executionCount: number | null,
-	attachments: unknown,
-};
-
-export type NotebookEdit = { type: "setSource"; cell: string; source: string } | { type: "insertCell"; after: string | null; cellType: string } | { type: "deleteCell"; cell: string } | { type: "moveCell"; cell: string; before: string | null } | { type: "setCellType"; cell: string; cellType: string } | { type: "setOutputs"; cell: string; outputs: unknown[]; executionCount: number | null };
-
-export type NotebookOutputEvent = {
-	id: string,
-	path: string,
-	cell: string,
-	msgId: string,
-	kind: string,
-	content: unknown,
-	version: number,
-	dirty: boolean,
-	changedCells: string[],
-};
-
-export type NotebookSnapshot = {
-	id: string,
-	path: string,
-	version: number,
-	dirty: boolean,
-	canUndo: boolean,
-	canRedo: boolean,
-	nbformat: number,
-	nbformatMinor: number,
-	metadata: unknown,
-	cells: NotebookCell[],
-};
 
 export type NotificationGroupSettings = {
 	/**  `balloon` | `sticky` | `none` */
@@ -3806,10 +2924,6 @@ export type OutlineItem = {
 	visibility?: Visibility | null,
 };
 
-export type OutputChunk = { kind: "stdout"; text: string } | { kind: "stderr"; text: string } | 
-/**  System message from the IDE (command line echo, exit code). */
-{ kind: "system"; text: string };
-
 /**  A file of a partial commit: which of its changes against HEAD to commit. */
 export type PartialCommitFile = {
 	path: IpcPath,
@@ -3848,94 +2962,6 @@ export type Pos = {
 	col: number,
 };
 
-export type PrCheck = {
-	name: string,
-	/**  Workflow of a check run (GitHub Actions), if any. */
-	workflow: string | null,
-	status: CheckStatus,
-	url: string | null,
-};
-
-export type PrCommit = {
-	oid: string,
-	headline: string,
-	body: string,
-	author: string,
-	date: string,
-};
-
-/**  Revisions to diff a pull request's files with, present in the local repository. */
-export type PrDiffRevisions = {
-	/**  Merge base of base and head (what GitHub's "Files changed" compares with). */
-	base: string,
-	head: string,
-	/**  Changed files with rename information. */
-	files: ChangedFile[],
-	/**  Worktree root the file paths are relative to. */
-	root: IpcPath,
-};
-
-export type PrFile = {
-	path: string,
-	additions: number,
-	deletions: number,
-	/**  `ADDED`, `MODIFIED`, `DELETED`, `RENAMED`, `COPIED`, `CHANGED`. */
-	changeType: string,
-};
-
-export type PrLabel = {
-	name: string,
-	/**  Hex colour without `#`, as GitHub stores it. */
-	color: string,
-};
-
-export type PrListQuery = {
-	state: PrStateFilter,
-	authorMe: boolean,
-	reviewRequested: boolean,
-	assigneeMe: boolean,
-	/**  Free text / GitHub search qualifiers. */
-	search: string,
-	limit: number,
-};
-
-/**  An inline review comment on a diff line. */
-export type PrReviewComment = {
-	id: number,
-	inReplyTo: number | null,
-	path: string,
-	/**  1-based line in the current diff; `None` when the comment is outdated. */
-	line: number | null,
-	originalLine: number | null,
-	/**  `LEFT` (base) or `RIGHT` (head). */
-	side: string,
-	body: string,
-	author: string,
-	createdAt: string,
-	url: string,
-	diffHunk: string,
-};
-
-export type PrReviewer = {
-	login: string,
-	/**  `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED`, `DISMISSED`, or `REQUESTED` (no review yet). */
-	state: string,
-};
-
-export type PrState = "open" | "closed" | "merged";
-
-export type PrStateFilter = "open" | "closed" | "merged" | "all";
-
-/**  A conversation comment or a submitted review (the timeline). */
-export type PrTimelineItem = {
-	author: string,
-	body: string,
-	createdAt: string,
-	/**  `None` for comments; the review state for reviews. */
-	reviewState: string | null,
-	url: string | null,
-};
-
 export type PrettierSettings = {
 	/**  Empty path: project node_modules, managed installation, then PATH. */
 	path?: string,
@@ -3954,67 +2980,6 @@ export type ProcessMemory = {
 	/**  Number of processes counted in this row. */
 	processes: number,
 	bytes: number | null,
-};
-
-export type Profile = {
-	/**  `node --cpu-prof`, `py-spy`, `async-profiler`, `perf`. */
-	profiler: string,
-	/**  `ms` (time-weighted) or `samples`. */
-	unit: string,
-	total: number | null,
-	frames: ProfileFrame[],
-	/**  Depth-first; `nodes[0]` is the root. */
-	nodes: ProfileNode[],
-	/**  Sorted by self weight, heaviest first. */
-	methods: MethodStat[],
-};
-
-export type ProfileFrame = {
-	name: string,
-	file: IpcPath | null,
-	/**  0-based. */
-	line: number | null,
-};
-
-/**  A call-tree node; node 0 is the synthetic root (`all`). */
-export type ProfileNode = {
-	/**  Index into [`Profile::frames`]. */
-	frame: number,
-	/**  Weight of this node and everything it called. */
-	total: number | null,
-	/**  Weight sampled in this node itself. */
-	selfWeight: number | null,
-	/**  Indices into [`Profile::nodes`], heaviest first. */
-	children: number[],
-};
-
-export type ProfilePrepared = ProfilePrepared_Serialize | ProfilePrepared_Deserialize;
-
-export type ProfilePrepared_Deserialize = ({ status: "ready"; profiler: string; launch: RunConfig_Deserialize; spec: ProfileSpec }) & { homepage?: never; install?: never; message?: never; reason?: never; tool?: never } | ({ status: "missingTool"; tool: string; message: string; install: ProfilerInstall | null; homepage: string | null }) & { launch?: never; profiler?: never; reason?: never; spec?: never } | ({ status: "unsupported"; reason: string }) & { homepage?: never; install?: never; launch?: never; message?: never; profiler?: never; spec?: never; tool?: never };
-
-export type ProfilePrepared_Serialize = ({ status: "ready"; profiler: string; launch: RunConfig_Serialize; spec: ProfileSpec }) & { homepage?: never; install?: never; message?: never; reason?: never; tool?: never } | ({ status: "missingTool"; tool: string; message: string; install: ProfilerInstall | null; homepage: string | null }) & { launch?: never; profiler?: never; reason?: never; spec?: never } | ({ status: "unsupported"; reason: string }) & { homepage?: never; install?: never; launch?: never; message?: never; profiler?: never; spec?: never; tool?: never };
-
-/**  Where a prepared run's profile will be, and how to read it. */
-export type ProfileSpec = 
-/**
- *  Every `*.cpuprofile` in `dir` (one per Node.js process). Processes that
- *  ran no code of `root` (the package manager of an npm script) are left
- *  out when another one did.
- */
-{ kind: "cpuProfiles"; dir: IpcPath; root: IpcPath } | 
-/**
- *  Collapsed-stack files with extension `ext` in `dir`; relative frame files resolve
- *  against `base`. `jvm_root`: map JVM class frames to sources below it.
- */
-{ kind: "folded"; profiler: string; dir: IpcPath; ext: string; base: IpcPath; jvmRoot: IpcPath | null } | 
-/**  `perf script -i <data>` output. */
-{ kind: "perf"; perf: string; data: IpcPath; cwd: IpcPath; env: { [key in string]: string } };
-
-/**  A command line that installs a missing profiler. */
-export type ProfilerInstall = {
-	command: string,
-	args: string[],
-	cwd: IpcPath | null,
 };
 
 export type ProjectFileSet = 
@@ -4090,53 +3055,6 @@ export type ProxySettings = {
 	login?: string,
 	/**  Kept in the saved passwords rather than `settings.toml`; filled in when settings are read. */
 	password?: string,
-};
-
-export type PruneTarget = "containers" | 
-/**  Dangling images only. */
-"images" | 
-/**  Every image no container uses. */
-"allImages" | "volumes" | "networks" | 
-/**  Stopped containers, unused networks, dangling images and build cache. */
-"system";
-
-export type PullRequestDetails = {
-	summary: PullRequestSummary,
-	body: string,
-	headOid: string,
-	baseOid: string,
-	/**  `MERGEABLE`, `CONFLICTING`, `UNKNOWN`. */
-	mergeable: string,
-	/**  GitHub's merge box state: `CLEAN`, `UNSTABLE`, `HAS_HOOKS`, `BLOCKED`, `BEHIND`, `DIRTY`, `DRAFT`, `UNKNOWN`. */
-	mergeStateStatus: string,
-	isCrossRepository: boolean,
-	mergedAt: string | null,
-	closedAt: string | null,
-	checks: PrCheck[],
-	reviewers: PrReviewer[],
-	assignees: string[],
-	commits: PrCommit[],
-	files: PrFile[],
-	/**  Comments and reviews, oldest first. */
-	timeline: PrTimelineItem[],
-};
-
-export type PullRequestSummary = {
-	number: number,
-	title: string,
-	author: string,
-	state: PrState,
-	isDraft: boolean,
-	headRef: string,
-	baseRef: string,
-	createdAt: string,
-	updatedAt: string,
-	labels: PrLabel[],
-	/**  `APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED`, or `None`. */
-	reviewDecision: string | null,
-	url: string,
-	additions: number,
-	deletions: number,
 };
 
 /**  Push dialog › Push tags: every tag, or only annotated tags on the pushed commits. */
@@ -4361,8 +3279,6 @@ export type RequestId = number;
 /**  `git reset` modes offered by Reset Current Branch to Here. */
 export type ResetMode = "soft" | "mixed" | "hard" | "keep";
 
-export type ReviewEvent = "approve" | "requestChanges" | "comment";
-
 /**  A file changed across several commits: its content at `before` ↔ at `after`. */
 export type RevisionChange = {
 	/**  Repository-relative path after the change (before it, for a deletion). */
@@ -4378,140 +3294,8 @@ export type RevisionChange = {
 
 export type RootKind = "source" | "test" | "resources" | "testResources" | "excluded";
 
-export type RunConfig = RunConfig_Serialize | RunConfig_Deserialize;
-
-export type RunConfig_Deserialize = {
-	/**  Stable id, e.g. `npm:dev`, `cargo:run:app`, or a uuid for user-defined. */
-	id: string,
-	name: string,
-	/**  `npm` | `cargo` | `gradle` | `maven` | `go` | `python` | `pytest` | `make` | `shell` … */
-	kind: string,
-	command: string,
-	args: string[],
-	cwd: IpcPath | null,
-	env: { [key in string]: string },
-	/**  Detected configs are regenerated; user configs persist in `.openidea/run.toml`. */
-	detected: boolean,
-	/**  Test runner configs render results in the test tree. */
-	isTest: boolean,
-	/**  DAP adapter that can debug this config, if any. */
-	debugAdapter: string | null,
-	/**  "Allow multiple instances": Run on a running config starts another one instead of restarting it. */
-	allowParallel?: boolean,
-} & RunExtras_Deserialize;
-
-export type RunConfig_Serialize = {
-	/**  Stable id, e.g. `npm:dev`, `cargo:run:app`, or a uuid for user-defined. */
-	id: string,
-	name: string,
-	/**  `npm` | `cargo` | `gradle` | `maven` | `go` | `python` | `pytest` | `make` | `shell` … */
-	kind: string,
-	command: string,
-	args: string[],
-	cwd: IpcPath | null,
-	env: { [key in string]: string },
-	/**  Detected configs are regenerated; user configs persist in `.openidea/run.toml`. */
-	detected: boolean,
-	/**  Test runner configs render results in the test tree. */
-	isTest: boolean,
-	/**  DAP adapter that can debug this config, if any. */
-	debugAdapter: string | null,
-	/**  "Allow multiple instances": Run on a running config starts another one instead of restarting it. */
-	allowParallel?: boolean,
-} & RunExtras_Serialize;
-
-export type RunExtras = RunExtras_Serialize | RunExtras_Deserialize;
-
-export type RunExtras_Deserialize = {
-	/**  Module supplying a JVM application's classpath; empty means the project root. */
-	module?: string | null,
-	/**  Values of the configuration type's own form fields (the command line derives from them). */
-	params?: { [key in string]: string },
-	/**  Folder in the Run/Debug Configurations tree. */
-	folder?: string | null,
-	/**  Stored in the workspace (`.openidea/run.local.toml`, not shared) instead of `run.toml`. */
-	local?: boolean,
-	/**  Off: the process gets only the configured variables. */
-	includeSystemEnv?: boolean,
-	/**  `.env` files (relative to the project root) loaded before `env`, in order. */
-	envFiles?: string[],
-	/**  "Redirect input from": the process reads this file as stdin. */
-	stdinFile?: string | null,
-	/**  "Save console output to file" (overwritten on each run). */
-	outputFile?: string | null,
-	beforeLaunch?: BeforeLaunchTask[],
-	/**  Compound configurations: ids of the configurations started together. */
-	compound?: string[],
-	showOnStdout?: boolean,
-	showOnStderr?: boolean,
-	/**  Overrides Settings › Run › "Show the Run tool window when a process starts". */
-	openToolWindow?: boolean | null,
-	focusToolWindow?: boolean,
-	/**
-	 *  "Emulate terminal in output console": the process runs on a pseudo-terminal
-	 *  (colours, line editing, full-screen programs); the console renders it as a terminal.
-	 */
-	emulateTerminal?: boolean,
-	/**
-	 *  Shell command line run on Stop before the process is signalled (e.g. `docker stop <name>`),
-	 *  with the run's working directory and environment.
-	 */
-	stopCommand?: string | null,
-	/**  Settings › Run Targets id the process runs on (over SSH); `None` = this machine. */
-	target?: string | null,
-};
-
-export type RunExtras_Serialize = {
-	/**  Module supplying a JVM application's classpath; empty means the project root. */
-	module?: string | null,
-	/**  Values of the configuration type's own form fields (the command line derives from them). */
-	params?: { [key in string]: string },
-	/**  Folder in the Run/Debug Configurations tree. */
-	folder?: string | null,
-	/**  Stored in the workspace (`.openidea/run.local.toml`, not shared) instead of `run.toml`. */
-	local?: boolean,
-	/**  Off: the process gets only the configured variables. */
-	includeSystemEnv?: boolean,
-	/**  `.env` files (relative to the project root) loaded before `env`, in order. */
-	envFiles?: string[],
-	/**  "Redirect input from": the process reads this file as stdin. */
-	stdinFile?: string | null,
-	/**  "Save console output to file" (overwritten on each run). */
-	outputFile?: string | null,
-	beforeLaunch?: BeforeLaunchTask[],
-	/**  Compound configurations: ids of the configurations started together. */
-	compound?: string[],
-	showOnStdout?: boolean,
-	showOnStderr?: boolean,
-	/**  Overrides Settings › Run › "Show the Run tool window when a process starts". */
-	openToolWindow?: boolean | null,
-	focusToolWindow?: boolean,
-	/**
-	 *  "Emulate terminal in output console": the process runs on a pseudo-terminal
-	 *  (colours, line editing, full-screen programs); the console renders it as a terminal.
-	 */
-	emulateTerminal?: boolean,
-	/**
-	 *  Shell command line run on Stop before the process is signalled (e.g. `docker stop <name>`),
-	 *  with the run's working directory and environment.
-	 */
-	stopCommand?: string | null,
-	/**  Settings › Run Targets id the process runs on (over SSH); `None` = this machine. */
-	target?: string | null,
-};
-
 /**  A process started from a run configuration. */
 export type RunId = number;
-
-export type RunInfo = {
-	id: RunId,
-	configId: string,
-	name: string,
-	pid: number | null,
-	running: boolean,
-	/**  Runs on a pseudo-terminal: output is raw terminal data, input goes in keystroke by keystroke. */
-	pty: boolean,
-};
 
 /**  Run/Debug configuration behaviour. */
 export type RunSettings = {
@@ -4550,12 +3334,6 @@ export type RustSettings = {
 	checkCommand?: string,
 	/**  Extra arguments for rustfmt (rust-analyzer `rustfmt.extraArgs`), space-separated. */
 	rustfmtArgs?: string,
-};
-
-export type Scope = {
-	name: string,
-	variablesReference: number,
-	expensive: boolean,
 };
 
 /**  One installed interpreter / toolchain. */
@@ -4661,22 +3439,6 @@ export type ServerStatus = "starting" | "ready" | "busy" | "crashed" | "stopped"
  *  the message says what to change, and a settings change retries.
  */
 "misconfigured";
-
-/**  Exception filters of one session (see [`DebugManager::exception_filters`]). */
-export type SessionExceptionFilters = {
-	session: DebugSessionId,
-	adapter: string,
-	filters: ExceptionFilter[],
-};
-
-/**  A live session, as listed by [`DebugManager::sessions`]. */
-export type SessionInfo = {
-	id: DebugSessionId,
-	name: string,
-	adapter: string,
-	/**  Set for child sessions started by the adapter (`startDebugging`). */
-	parent: DebugSessionId | null,
-};
 
 export type Settings = Settings_Serialize | Settings_Deserialize;
 
@@ -4925,22 +3687,6 @@ export type SshSettings = {
 	configs?: SshConfiguration[],
 };
 
-export type SshTerminalCommand = {
-	shell: string,
-	args: string[],
-	title: string,
-};
-
-export type StackFrame = {
-	id: number,
-	name: string,
-	path: IpcPath | null,
-	line: number,
-	column: number,
-	/**  `subtle` frames (library/generated) are collapsed in the UI. */
-	presentationHint: string | null,
-};
-
 export type StartupMetrics = {
 	/**
 	 *  Process start → `main`: exec, code-signature scan (seconds for a freshly
@@ -4961,51 +3707,6 @@ export type Stash = {
 	timeMs: number | null,
 };
 
-/**  A call on the current line that Smart Step Into can enter (`stepInTargets`). */
-export type StepInTarget = {
-	id: number,
-	label: string,
-	/**  0-based, when the adapter reports where the call is. */
-	line: number | null,
-	column: number | null,
-	endColumn: number | null,
-};
-
-export type StepKind = "over" | "into" | "out";
-
-export type StructuralEvent = { type: "file"; file: StructuralFile } | { type: "done"; summary: StructuralSummary };
-
-/**  All matches in one file; streamed as files complete. */
-export type StructuralFile = {
-	path: IpcPath,
-	relPath: string,
-	matches: StructuralMatch[],
-};
-
-export type StructuralLanguage = {
-	id: LanguageId,
-	name: string,
-};
-
-export type StructuralMatch = {
-	range: Range,
-	/**  The matched code (capped). */
-	text: string,
-	/**  The first line of the match, for result rows. */
-	lineText: string,
-	replacement: string | null,
-};
-
-export type StructuralQuery = {
-	pattern: string,
-	/**  Only files of this language are searched. */
-	language: LanguageId,
-	/**  Replacement template; matches then carry their replacement text. */
-	replacement: string | null,
-	/**  Stop after this many matches (0 = 5 000). */
-	maxMatches: number,
-};
-
 /**  Structural ranges around a position (selection, move / complete statement). */
 export type StructuralRanges = {
 	/**  Extend Selection chain, innermost first (shrink = walk it backwards). */
@@ -5020,14 +3721,6 @@ export type StructuralRanges = {
 	declaration: SyntaxNode | null,
 	prevDeclaration: SyntaxNode | null,
 	nextDeclaration: SyntaxNode | null,
-};
-
-export type StructuralSummary = {
-	files: number,
-	matches: number,
-	limitHit: boolean,
-	cancelled: boolean,
-	elapsedMs: number,
 };
 
 /**  What the structure service can do for a language. */
@@ -5055,34 +3748,6 @@ export type SymbolMatch = {
 	score: number,
 	/**  Matched char indices within `name`. */
 	indices: number[],
-};
-
-export type SyncAction = "upload" | "download" | "deleteRemote" | "deleteLocal";
-
-/**  One file of Sync with Deployed. */
-export type SyncEntry = {
-	/**  Project-relative, `/`-separated. */
-	path: string,
-	remotePath: string,
-	local: FileStamp | null,
-	remote: FileStamp | null,
-	status: SyncStatus,
-};
-
-export type SyncProgress = {
-	message: string,
-	/**  0..1, or `None` when indeterminate. */
-	fraction: number | null,
-};
-
-export type SyncStatus = "localOnly" | "remoteOnly" | "localNewer" | "remoteNewer" | 
-/**  Same time, different size. */
-"different" | "same";
-
-export type SyncStep = {
-	/**  Project-relative, `/`-separated. */
-	path: string,
-	action: SyncAction,
 };
 
 /**  Counters for diagnostics (`app_metrics`). */
@@ -5208,21 +3873,6 @@ export type TerminalSettings = {
 	columnWidth?: number | null,
 };
 
-export type TestCaseReport = {
-	/**  Fully qualified class (`com.acme.OrderTest`, nested: `com.acme.OrderTest$Nested`). */
-	className: string,
-	/**  Method name without `()`. */
-	name: string,
-	status: TestCaseStatus,
-	durationMs: number | null,
-	/**  Failure / error / skip message. */
-	message: string | null,
-	/**  Failure stack trace and captured output. */
-	output: string | null,
-};
-
-export type TestCaseStatus = "passed" | "failed" | "skipped";
-
 /**  Editor › Color Scheme override of one text attribute. */
 export type TextAttributesOverride = TextAttributesOverride_Serialize | TextAttributesOverride_Deserialize;
 
@@ -5264,89 +3914,9 @@ export type TextEdit = {
 	new_text: string,
 };
 
-export type ThreadInfo = {
-	id: number,
-	name: string,
-};
-
-export type TomcatHome = {
-	version: string,
-};
-
-/**  UI-facing state of one tool. */
-export type ToolInfo = {
-	/**  Server / adapter name from `languages/*.toml`. */
-	name: string,
-	displayName: string,
-	kind: ToolKind,
-	/**  The executable the IDE launches. */
-	command: string,
-	/**  Names of the languages using this tool. */
-	languages: string[],
-	status: ToolStatus,
-	path: IpcPath | null,
-	version: string | null,
-	/**  How it gets installed, e.g. `npm`, `GitHub release`; `None` when not installable. */
-	installMethod: string | null,
-	canInstall: boolean,
-	/**  Why install is impossible right now (missing npm, no build for this platform, …). */
-	unavailableReason: string | null,
-	canUninstall: boolean,
-	/**  Manual install instructions from the language definition. */
-	installHint: string | null,
-	homepage: string | null,
-	/**  Why the executable chosen in settings cannot be used (status is then `Missing`). */
-	customError: string | null,
-	/**  A language server's arguments from its language definition. */
-	defaultArgs: string[],
-	/**  A language server's `initializationOptions` from its language definition, as JSON text. */
-	defaultInitializationOptions: string | null,
-	/**
-	 *  The interchangeable servers this one belongs to, in preference order: a
-	 *  server and the `fallback` ones after it. Empty when it has none.
-	 */
-	alternatives: string[],
-};
-
-export type ToolKind = "languageServer" | "debugger" | 
-/**  Loaded into another tool's process, e.g. a jdtls agent. */
-"plugin" | "formatter";
-
 export type ToolSettings = {
 	/**  Executable to launch instead of the managed / `PATH` one; empty = auto-detect. */
 	path?: string,
-};
-
-export type ToolStatus = 
-/**  Installed by the IDE (managed tools dir or a toolchain component it manages). */
-"installed" | 
-/**  Found on the system `PATH`. */
-"onPath" | 
-/**  The executable chosen in settings. */
-"custom" | "missing";
-
-export type TransferError = {
-	path: string,
-	message: string,
-};
-
-export type TransferReport = {
-	files: number,
-	/**  Files left alone: excluded, or outside every mapping. */
-	skipped: number,
-	errors: TransferError[],
-};
-
-export type TrustDecisions = {
-	projects: string[],
-	locations: string[],
-	restricted: string[],
-};
-
-export type TrustStatus = {
-	root: IpcPath,
-	trusted: boolean,
-	decided: boolean,
 };
 
 export type TypeScriptSettings = {
@@ -5398,15 +3968,6 @@ export type UpdateProgress =
 { type: "downloading"; downloaded: number | null; total: number | null } | 
 /**  Download done; the new version is being written over this one. */
 { type: "installing" };
-
-export type Variable = {
-	name: string,
-	value: string,
-	typeName: string | null,
-	/**  > 0 when expandable. */
-	variablesReference: number,
-	evaluateName: string | null,
-};
 
 /**  Version Control › Confirmation. */
 export type VcsConfirmationSettings = {
@@ -5467,13 +4028,6 @@ export type VirtualDocument = {
 export type Visibility = "public" | "protected" | 
 /**  Package / module / assembly scope (Java default, `internal`, `pub(crate)`, Go unexported). */
 "package" | "private";
-
-export type WebArtifact = {
-	id: string,
-	name: string,
-	module: string,
-	tool: string,
-};
 
 /**
  *  A web reference no language server resolves and where it points: `class="card"` →

@@ -1,10 +1,10 @@
+import { activateFeatures } from "@/features";
+import { useContributions } from "@/workbench/contributions";
+import { render } from "@testing-library/react";
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
-import { activateFeatures } from "@/features";
-import { useContributions } from "@/workbench/contributions";
-import { Icon, ICON_NAMES, SymbolBadge, fileIconName, hasIcon, iconMarkup, iconMarkupOrFallback } from "./icons";
+import { fileIconName, hasIcon, Icon, ICON_NAMES, iconMarkup, iconMarkupOrFallback, SymbolBadge } from "./icons";
 
 describe("tool window icons", () => {
   let dispose: () => void = () => {};
@@ -20,17 +20,7 @@ describe("tool window icons", () => {
   it("gives every built-in tool window its own existing icon", () => {
     const windows = [...useContributions.getState().toolWindows.values()];
     const ids = windows.map((w) => w.id);
-    for (const id of [
-      "project",
-      "structure",
-      "bookmarks",
-      "find",
-      "usages",
-      "hierarchy",
-      "problems",
-      "commit",
-      "git",
-    ]) {
+    for (const id of ["project", "find", "commit", "git", "terminal"]) {
       expect(ids).toContain(id);
     }
     const icons = windows.map((w) => w.icon);

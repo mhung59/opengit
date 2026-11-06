@@ -1,5 +1,5 @@
 //! The configured Git binary is process-wide, so it has its own test binary.
-#![cfg(unix)]
+#![cfg(all(unix, feature = "project-trust"))]
 use ide_core::NullSink;
 use ide_host::{Host, HostConfig, ops};
 use std::os::unix::fs::PermissionsExt;

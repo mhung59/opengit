@@ -1,10 +1,10 @@
-import type { ReactNode } from "react";
 import clsx from "clsx";
-import { Icon, type IconName } from "./icons";
+import type { ReactNode } from "react";
 import { IconButton } from "./Button";
-import { T } from "./T";
-import { selectableText } from "./selectableText";
 import styles from "./Feedback.module.css";
+import { T } from "./T";
+import { Icon, type IconName } from "./icons";
+import { selectableText } from "./selectableText";
 
 export interface ProgressBarProps {
   /** 0..1; `null`/`undefined` renders the indeterminate animation. */
@@ -55,26 +55,6 @@ export function Spinner({
       <path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
     </svg>
   );
-}
-
-export interface BadgeProps {
-  children: ReactNode;
-  tone?: "neutral" | "accent" | "danger" | "warning" | "success";
-  /** Small dot instead of a pill (`children` is used as the accessible label). */
-  dot?: boolean;
-  className?: string;
-}
-
-export function Badge({ children, tone = "neutral", dot, className }: BadgeProps) {
-  if (dot)
-    return (
-      <span
-        className={clsx(styles.dot, styles[`tone-${tone}`], className)}
-        role="status"
-        aria-label={String(children)}
-      />
-    );
-  return <span className={clsx(styles.badge, styles[`tone-${tone}`], className)}>{children}</span>;
 }
 
 export interface EmptyStateProps {

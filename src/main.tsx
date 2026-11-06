@@ -1,13 +1,14 @@
+import "./styles/global.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "./styles/global.css";
-import { Workbench } from "./workbench/Workbench";
-import { activateSecondaryWindow, activateWorkbench } from "./workbench/activate";
 import { activateFeatures, activateSettingsWindowFeatures, SettingsWindow, settingsWindowParent } from "./features";
-import { installKeyboardDispatcher } from "./platform/keymap";
 import { isTauri } from "./platform/ipc";
+import { installKeyboardDispatcher } from "./platform/keymap";
+import { useProject } from "./platform/project";
 import { hideSplash } from "./platform/splash";
 import { prefetchLazyComponents } from "./ui";
+import { Workbench } from "./workbench/Workbench";
+import { activateSecondaryWindow, activateWorkbench } from "./workbench/activate";
 
 if (import.meta.env.DEV && isTauri()) {
   // The Tauri MCP bridge returns eval results via `window.__TAURI__` on Windows/Linux
@@ -44,5 +45,15 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>{settingsParent !== null ? <SettingsWindow /> : <Workbench />}</React.StrictMode>,
 );
 hideSplash();
-// Views split out of the start-up bundle load in the background once the UI is up.
-if (settingsParent === null) prefetchLazyComponents();
+// Warm frequent Git views only while a repository is open.
+if (settingsParent === null) {
+  let cancelPrefetch = () => {};
+  const prefetch = () => {
+    cancelPrefetch();
+    if (useProject.getState().project) cancelPrefetch = prefetchLazyComponents();
+  };
+  prefetch();
+  useProject.subscribe((state, previous) => {
+    if (state.project !== previous.project) prefetch();
+  });
+}

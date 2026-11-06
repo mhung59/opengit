@@ -1,15 +1,15 @@
 /** "Compare with current": commits on either side of two branches. */
-import { useEffect, useState } from "react";
 import type { Commit } from "@/bindings";
 import { executeAction } from "@/platform/actions";
+import { tx } from "@/platform/i18n";
 import { call, commands } from "@/platform/ipc";
-import { Dialog, List, Spinner, Tabs, T } from "@/ui";
+import { Dialog, List, Spinner, T, Tabs } from "@/ui";
+import { useEffect, useState } from "react";
+import styles from "./common.module.css";
 import { openDialog } from "./dialogs";
 import { formatTime } from "./model";
 import { showCompareRevisions } from "./operations";
 import { currentRepo, useVcs } from "./store";
-import styles from "./common.module.css";
-import { tx } from "@/platform/i18n";
 
 const LIMIT = 2000;
 
@@ -121,7 +121,7 @@ function CompareDialog({ branch, current, onClose }: { branch: string; current: 
     return () => {
       alive = false;
     };
-  }, [branch]);
+  }, [branch, repo]);
   const list = data ? (tab === "incoming" ? data.incoming : data.outgoing) : [];
   return (
     <Dialog

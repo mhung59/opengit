@@ -239,27 +239,31 @@ impl Dispatcher {
         .add("term_kill", |c| async move { ops::term::kill(&c.host, c.arg("id")?) })
         .add("term_is_busy", |c| async move { ops::term::is_busy(&c.host, c.arg("id")?) })
         .add("term_default_shell", |_| async move { Ok(ide_terminal::default_shell_path()) })
-        .add("term_available_shells", |_| async move { Ok(ide_terminal::available_shells()) })
-        .add("run_configs", |c| async move { ops::run::configs(&c.host, &c.window) })
-        .add("run_save_configs", |c| async move {
-            ops::run::save_configs(
-                &c.host,
-                &c.window,
-                &c.arg::<Vec<ide_run::RunConfig>>("configs")?,
-                &c.arg::<Option<Vec<String>>>("removedDetectedIds")?.unwrap_or_default(),
+        .add("term_available_shells", |_| async move { Ok(ide_terminal::available_shells()) });
+        #[cfg(feature = "ide-services")]
+        d.add("run_configs", |c| async move { ops::run::configs(&c.host, &c.window) })
+            .add("run_save_configs", |c| async move {
+                ops::run::save_configs(
+                    &c.host,
+                    &c.window,
+                    &c.arg::<Vec<ide_run::RunConfig>>("configs")?,
+                    &c.arg::<Option<Vec<String>>>("removedDetectedIds")?.unwrap_or_default(),
+                )
+            })
+            .add("run_system_env", |_| async move { Ok(ide_run::system_env()) })
+            .add("run_start", |c| async move {
+                let on_output = c.channel("onOutput")?;
+                ops::run::start(&c.host, &c.window, c.arg("config")?, on_output).await
+            })
+            .add("run_stop", |c| async move { ops::run::stop(&c.host, &c.window, c.arg("id")?) })
+            .add("run_stdin", |c| async move { ops::run::stdin(&c.host, c.arg("id")?, &c.arg::<String>("data")?) })
+            .add(
+                "run_resize",
+                |c| async move { ops::run::resize(&c.host, c.arg("id")?, c.arg("cols")?, c.arg("rows")?) },
             )
-        })
-        .add("run_system_env", |_| async move { Ok(ide_run::system_env()) })
-        .add("run_start", |c| async move {
-            let on_output = c.channel("onOutput")?;
-            ops::run::start(&c.host, &c.window, c.arg("config")?, on_output).await
-        })
-        .add("run_stop", |c| async move { ops::run::stop(&c.host, &c.window, c.arg("id")?) })
-        .add("run_stdin", |c| async move { ops::run::stdin(&c.host, c.arg("id")?, &c.arg::<String>("data")?) })
-        .add("run_resize", |c| async move { ops::run::resize(&c.host, c.arg("id")?, c.arg("cols")?, c.arg("rows")?) })
-        .add("run_close_stdin", |c| async move { ops::run::close_stdin(&c.host, c.arg("id")?) })
-        .add("run_list", |c| async move { Ok(ops::run::list(&c.host)) })
-        .add("vcs_status", |c| async move { ops::vcs::status(&c.host, &c.window).await });
+            .add("run_close_stdin", |c| async move { ops::run::close_stdin(&c.host, c.arg("id")?) })
+            .add("run_list", |c| async move { Ok(ops::run::list(&c.host)) });
+        d.add("vcs_status", |c| async move { ops::vcs::status(&c.host, &c.window).await });
         ops::register_all(&mut d);
         d
     }

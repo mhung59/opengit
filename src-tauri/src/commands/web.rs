@@ -1,10 +1,13 @@
 //! Web browsers: the built-in server's URLs and launching browsers.
 
-use super::coverage::blocking;
 use crate::state::AppState;
 use ide_core::{IdeResult, IpcPath};
 use ide_web::Browser;
 use tauri::{State, Window};
+
+async fn blocking<T: Send + 'static>(f: impl FnOnce() -> IdeResult<T> + Send + 'static) -> IdeResult<T> {
+    tauri::async_runtime::spawn_blocking(f).await.map_err(|e| ide_core::IdeError::internal(e.to_string()))?
+}
 
 /// The browsers installed on this machine.
 #[tauri::command]

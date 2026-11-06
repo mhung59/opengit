@@ -127,8 +127,7 @@ describe("t / locales", () => {
   it("matches source-text templates, translating the substituted text", async () => {
     expect(txTemplate("Push failed")).toBe("Push failed");
     await setLocale("zh");
-    expect(txTemplate("ruff is not installed")).toBe("ruff 未安装");
-    expect(txTemplate("Language server 'gopls' is not installed")).toBe("语言服务器 'gopls' 未安装");
+    expect(txTemplate("Fetch failed")).toBe(`${tx("Fetch")}失败`);
     expect(txTemplate("Retry failed")).toBe(`${tx("Retry")}失败`);
     expect(txTemplate("Sync with OS")).toBe("与操作系统同步");
     expect(txTemplate("Something else entirely")).toBe("Something else entirely");
@@ -137,21 +136,21 @@ describe("t / locales", () => {
   it("translates text built by the tx tag, again after the locale changes", async () => {
     await setLocale("en");
     const name = "orders";
-    const built = tx`Run '${name}'`;
-    expect(built).toBe("Run 'orders'");
+    const built = tx`${name} failed`;
+    expect(built).toBe("orders failed");
     expect(tx`Unknown ${name} text`).toBe("Unknown orders text");
     await setLocale("zh");
     // Built before the catalog loaded: primitives passing it through `tx` translate it.
-    expect(tx(built)).toBe("运行 'orders'");
-    expect(txTemplate(built)).toBe("运行 'orders'");
-    const zh = tx`Run '${name}'`;
-    expect(zh).toBe("运行 'orders'");
+    expect(tx(built)).toBe("orders失败");
+    expect(txTemplate(built)).toBe("orders失败");
+    const zh = tx`${name} failed`;
+    expect(zh).toBe("orders失败");
     // Substituted text is translated when the catalog has it.
-    expect(tx`Run '${"Retry"}'`).toBe(`运行 '${tx("Retry")}'`);
+    expect(tx`${"Retry"} failed`).toBe(`${tx("Retry")}失败`);
     // Values are inserted as they are, braces included.
     expect(tx`Drop ${"stash@{0}"}? This cannot be undone.`).toBe("是否丢弃 stash@{0}？此操作无法撤消。");
     await setLocale("en");
-    expect(tx(zh)).toBe("Run 'orders'");
+    expect(tx(zh)).toBe("orders failed");
   });
 
   it("lists keys by prefix", () => {

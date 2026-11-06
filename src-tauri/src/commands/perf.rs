@@ -106,11 +106,6 @@ pub async fn app_metrics(app: AppHandle, state: State<'_, AppState>) -> IdeResul
         m.syntax.incremental_parses += s.incremental_parses;
         m.syntax.full_parses += s.full_parses;
     }
-    for r in state.processes.list().into_iter().filter(|r| r.running) {
-        if let Some(pid) = r.pid {
-            roots.push(process_root(pid, r.name, "Run"));
-        }
-    }
     for t in state.terminals.list() {
         if let Some(pid) = t.pid {
             roots.push(process_root(pid, t.title, "Terminal"));

@@ -12,8 +12,3 @@ const listeners = new Set<Listener>();
 export function publishLocalDiagnostics(path: string, producer: string, items: readonly Diagnostic[]) {
   listeners.forEach((l) => l(path, producer, items));
 }
-
-export function onLocalDiagnostics(listener: Listener): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}

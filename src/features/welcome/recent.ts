@@ -40,7 +40,7 @@ const SAMPLE: RecentProject[] = [
 
 export async function loadRecent() {
   if (!isTauri()) {
-    useRecent.setState({ projects: SAMPLE, loaded: true, home: "/Users/dev", version: "0.1.0-dev" });
+    useRecent.setState({ projects: SAMPLE, loaded: true, home: "/Users/dev", version: "0.1.1-dev" });
     return;
   }
   const [projects, info, home] = await Promise.all([

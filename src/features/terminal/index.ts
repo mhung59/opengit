@@ -6,8 +6,8 @@ import { registerActions } from "@/platform/actions";
 import { onIdeEvent } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
 import { onWorkflowSettingsChange } from "@/platform/workflowSettings";
-import { provideEmbeddedTerminal, registerToolWindow, toolWindowService } from "@/workbench/contributions";
 import { lazyComponent } from "@/ui";
+import { provideEmbeddedTerminal, registerToolWindow, toolWindowService } from "@/workbench/contributions";
 import { installTerminalKeys } from "./keys";
 import { loadTerminalRuntime, terminalRuntime } from "./loader";
 
@@ -200,10 +200,10 @@ export function activate(): () => void {
       terminalRuntime()?.applyThemeToAll();
       terminalRuntime()?.applyThemeToEmbedded();
     });
-    // A palette or plugin theme switch keeps data-theme when both themes share a light / dark base.
+    // Palette switches can keep data-theme when both themes share a light / dark base.
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["data-theme", "data-contrast", "data-color-theme", "data-plugin-theme", "style"],
+      attributeFilter: ["data-theme", "data-contrast", "data-color-theme", "style"],
     });
     disposers.push(() => observer.disconnect());
   }

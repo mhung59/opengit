@@ -1,9 +1,12 @@
 /** React popups for LSP editor features, rendered as a workbench overlay. */
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import clsx from "clsx";
+import { tx } from "@/platform/i18n";
+import { shortcutLabel } from "@/platform/keymap";
+import { basename, relativePath, useProject } from "@/platform/project";
 import {
   Checkbox,
   Dialog,
+  fileIconName,
+  fuzzyMatch,
   HighlightedText,
   Icon,
   IconButton,
@@ -12,23 +15,13 @@ import {
   MenuList,
   Popup,
   Select,
-  SymbolBadge,
-  fileIconName,
-  fuzzyMatch,
   selectableText,
+  SymbolBadge,
   T,
 } from "@/ui";
-import { basename, relativePath, useProject } from "@/platform/project";
 import { editorService } from "@/workbench/contributions";
-import {
-  closePopup,
-  updatePopup,
-  useLspPopup,
-  type ListPopupItem,
-  type ListPreview,
-  type LspPopup,
-} from "./popupStore";
-import { shortcutLabel } from "@/platform/keymap";
+import clsx from "clsx";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   docLinkHandler,
   docStep,
@@ -39,10 +32,16 @@ import {
   type DocHost,
 } from "./docs";
 import { renderCode, renderMarkup } from "./markdown";
-import { describeSummary } from "./workspaceEdit";
-import { useUsagesStatus } from "./navigation";
 import styles from "./Popups.module.css";
-import { tx } from "@/platform/i18n";
+import {
+  closePopup,
+  updatePopup,
+  useLspPopup,
+  type ListPopupItem,
+  type ListPreview,
+  type LspPopup,
+} from "./popupStore";
+import { describeSummary } from "./workspaceEdit";
 
 export function BulbIcon({ fix }: { fix?: boolean }) {
   return <Icon name={fix ? "bulb-fix" : "bulb"} size={16} className={styles.bulb} />;
@@ -652,17 +651,6 @@ function ReformatDialog({ popup }: { popup: Extract<LspPopup, { kind: "reformat"
         />
       </fieldset>
     </Dialog>
-  );
-}
-
-/** Status bar text while ⌘⇧F7 usages are highlighted ("3 usages of 'x' found…"). */
-export function UsagesStatus() {
-  const text = useUsagesStatus((s) => s.text);
-  if (!text) return null;
-  return (
-    <span className={styles.statusMessage} role="status" title={text}>
-      {text}
-    </span>
   );
 }
 

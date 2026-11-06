@@ -5608,29 +5608,22 @@ dependencies = [
 
 [[package]]
 name = "opengit"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "blake3",
  "block2 0.6.2",
  "dirs 6.0.0",
  "dunce",
- "ide-analysis",
  "ide-build",
  "ide-clipboard",
  "ide-core",
- "ide-coverage",
- "ide-dap",
- "ide-docker",
  "ide-fonts",
- "ide-github",
  "ide-host",
  "ide-http",
  "ide-index",
  "ide-jsonrpc",
  "ide-language",
  "ide-lsp",
- "ide-notebook",
- "ide-profiler",
  "ide-remote",
  "ide-run",
  "ide-sdk",

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import type { Action } from "@/platform/actions";
 import type { SymbolMatch, WorkspaceSymbol } from "@/platform/ipc";
+import { describe, expect, it } from "vitest";
 import {
   buildRows,
   fileItem,
@@ -250,7 +250,7 @@ describe("items and rows", () => {
   it("sectionsFor picks sources per tab and empty query", () => {
     expect(sectionsFor("all", true)).toEqual(["recent", "recentActions"]);
     expect(sectionsFor("classes", true)).toEqual([]);
-    expect(sectionsFor("all", false)).toEqual(["classes", "files", "symbols", "actions", "text"]);
+    expect(sectionsFor("all", false)).toEqual(["files", "actions", "text"]);
     expect(sectionsFor("text", false)).toEqual(["text"]);
   });
 });
@@ -330,9 +330,7 @@ describe("parseCommand", () => {
   it("lists scope commands matching the typed prefix", () => {
     const c = parseCommand("/");
     expect(c?.kind === "list" && c.rows.map((r) => (r as { name: string }).name)).toEqual([
-      "/classes",
       "/files",
-      "/symbols",
       "/actions",
       "/text",
     ]);

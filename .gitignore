@@ -33,6 +33,10 @@ playwright-report/
 # Local AI agent files
 CLAUDE.md
 .claude/
+.codegraph/
+
+# Superseded local logo drafts
+assets/branding/opengit-logo-v1.*
 
 # Local reference screenshots
 pycharm-screenshots/

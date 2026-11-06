@@ -5,12 +5,12 @@
  */
 import { executeAction, type Action } from "@/platform/actions";
 import { isPowerSaveMode } from "@/platform/editorSettings";
+import { tx } from "@/platform/i18n";
 import { call, commands, isTauri } from "@/platform/ipc";
 import { useProject } from "@/platform/project";
-import { notifications, registerEditorBanner } from "@/workbench/contributions";
+import { notifications } from "@/workbench/contributions";
 import { promptInput } from "@/workbench/inputDialogs";
 import { showNewProject } from "./NewProject";
-import { tx } from "@/platform/i18n";
 
 /** localStorage prefixes of IDE-level state exported with the settings (templates, macros, layouts). */
 export const EXPORTED_STORAGE = [
@@ -175,21 +175,4 @@ export function projectActions(): Action[] {
       run: togglePowerSave,
     },
   ];
-}
-
-/** The banner above every editor while Power Save Mode is on. */
-export function registerPowerSaveBanner(): () => void {
-  return registerEditorBanner({
-    id: "app.powerSave",
-    order: 0,
-    useBanner: () => {
-      const on = useProject((s) => isPowerSaveMode(s.settings));
-      return on
-        ? {
-            text: "Power save mode is on: completion and documentation popups and usage highlighting are off.",
-            actions: [{ label: "Turn Off", run: () => void togglePowerSave() }],
-          }
-        : null;
-    },
-  });
 }

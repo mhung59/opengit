@@ -40,9 +40,40 @@ test("keeps the original Settings dialog without IDE service pages", async ({ wo
     "Agents",
     "Database",
     "Notifications",
+    "Project Trust",
+    "Security",
   ]) {
     await expect(dialog.getByRole("treeitem", { name, exact: true })).toHaveCount(0);
   }
+});
+
+test("opens a repository directly without a trust prompt or restricted banner", async ({ workbench: page }) => {
+  await page.evaluate(async () => {
+    const { openProject, useProject } = await import("/src/platform/project.ts");
+    const { setInvokeRoute } = await import("/src/platform/tauriCore.ts");
+    const project = useProject.getState().project!;
+    // Browser tests stub the native open response; the real backend policy has
+    // separate Rust integration coverage, including legacy restricted decisions.
+    const invoked: string[] = [];
+    setInvokeRoute((command) => {
+      invoked.push(command);
+      return command === "open_project" ? Promise.resolve(project) : null;
+    });
+    useProject.setState({ project: null, lightEdit: false });
+    try {
+      await openProject(project.root);
+      if (invoked.some((command) => command.startsWith("project_trust_"))) {
+        throw new Error("Opening a repository must not request IDE trust");
+      }
+    } finally {
+      setInvokeRoute(null);
+    }
+  });
+  await expect(page.getByRole("tree", { name: "Project" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Trust and Open Project?", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Restricted Mode: project commands and tools are disabled.", { exact: true }),
+  ).toHaveCount(0);
 });
 
 test("keeps the welcome layout with only repository and appearance entry points", async ({

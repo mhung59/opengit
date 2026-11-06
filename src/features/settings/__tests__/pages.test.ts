@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import type { SettingsPageContribution } from "@/workbench/contributions";
+import { describe, expect, it } from "vitest";
 import {
   breadcrumb,
   buildPageTree,
@@ -73,10 +73,7 @@ describe("page tree", () => {
     expect(general.dynamicLabels!()).toEqual(
       expect.arrayContaining(["Soft-wrap files", "Reformat code on save", "Save Files"]),
     );
-    const completion = EDITOR_PAGES.find((p) => p.id === "editor.general.codeCompletion")!;
-    expect(completion.dynamicLabels!()).toEqual(
-      expect.arrayContaining(["Show suggestions as you type", "First letter only"]),
-    );
+    expect(EDITOR_PAGES.find((p) => p.id === "editor.general.codeCompletion")).toBeUndefined();
     const appearance = BEHAVIOR_PAGES.find((p) => p.id === "appearance")!;
     expect(specLabels(appearance)).toEqual(
       expect.arrayContaining([

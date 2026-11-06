@@ -4,22 +4,15 @@
  * icon, from the language server's answers (implementation requests and the
  * type hierarchy). Pure; the gutter itself is `implementationGutter`.
  */
-import type { Location, OutlineItem, SymbolKind } from "@/platform/ipc";
-import { tx } from "@/platform/i18n";
 import { identifierAt } from "@/editor/lsp/files";
+import { tx } from "@/platform/i18n";
+import type { Location, OutlineItem, SymbolKind } from "@/platform/ipc";
 import { baseName, type SuperMethod } from "./structureNav";
 
 export type MarkerKind = "implemented" | "overridden" | "implementing" | "overriding";
 
 /** Settings › Gutter Icons groups: ↓ markers and ↑ markers. */
 export type MarkerGroup = "inheritors" | "supers";
-
-export const MARKER_ICONS: Record<MarkerKind, string> = {
-  implemented: "gutter-implemented",
-  overridden: "gutter-overridden",
-  implementing: "gutter-implementing",
-  overriding: "gutter-overriding",
-};
 
 export interface MarkerCandidate {
   /** Outline name (`eat(String)` with jdtls), matched against supertypes' members. */

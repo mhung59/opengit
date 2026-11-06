@@ -1,3 +1,4 @@
+#![cfg(feature = "ide-services")]
 use ide_core::NullSink;
 #[cfg(unix)]
 use ide_host::ops;

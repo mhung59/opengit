@@ -3,11 +3,11 @@
  * Build Tools › Maven: the toolchain each language's server and run configurations
  * use (applied by `ide-sdk` when language servers start and when run configurations load).
  */
-import { useId, useMemo } from "react";
 import { IconButton, Input, type SelectOption } from "@/ui";
+import { useId, useMemo } from "react";
+import { useSetting } from "../components/context";
 import { Row, Section, Select, Toggle } from "../components/Form";
 import { choosePath } from "./api";
-import { useSetting } from "../components/context";
 import { SdkField, tildify, useDetected } from "./components";
 import styles from "./Sdk.module.css";
 
@@ -260,94 +260,6 @@ export function JavaPage() {
             onChange={(e) => setVmArgs(e.target.value)}
           />
         </Row>
-      </Section>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Build Tools › Gradle / Maven
-
-export function GradlePage() {
-  const [distribution, setDistribution] = useSetting<string>("languages.java.gradle.distribution");
-  return (
-    <div className={styles.page}>
-      <Section>
-        <SdkRow
-          k="languages.java.gradle.jvm"
-          label="Gradle JVM"
-          kind="jdk"
-          emptyLabel="Project JDK"
-          directory
-          browseTitle="Select JDK Home Directory"
-          aria-label="Gradle JVM"
-          hint="JDK used for Gradle sync, tasks, run configurations and tests. An explicit JAVA_HOME in a run configuration takes precedence."
-        />
-        <Row
-          label="Distribution"
-          hint="Uses the Gradle wrapper when present, otherwise the project-pinned mise/asdf Gradle, then Gradle on PATH."
-        >
-          <Select
-            value={distribution}
-            onChange={setDistribution}
-            aria-label="Distribution"
-            options={[
-              { value: "wrapper", label: "Gradle wrapper" },
-              { value: "local", label: "Local installation" },
-            ]}
-          />
-        </Row>
-        {distribution === "local" && (
-          <PathInput
-            k="languages.java.gradle.home"
-            label="Gradle home"
-            placeholder="Gradle installation directory"
-            title="Select Gradle Home Directory"
-            hint="Uses bin/gradle (bin/gradle.bat on Windows) instead of the wrapper or pinned toolchain."
-          />
-        )}
-        <PathInput
-          k="languages.java.gradle.userHome"
-          label="Gradle user home"
-          placeholder="~/.gradle"
-          title="Select Gradle User Home Directory"
-          hint="Sets GRADLE_USER_HOME. Empty uses Gradle's default."
-        />
-      </Section>
-    </div>
-  );
-}
-
-export function MavenPage() {
-  return (
-    <div className={styles.page}>
-      <Section>
-        <SdkRow
-          k="languages.java.maven.home"
-          label="Maven home path"
-          kind="maven"
-          emptyLabel="Auto"
-          emptyDetail="Maven wrapper, else mvn on PATH"
-          directory
-          browseTitle="Select Maven Home Directory"
-          aria-label="Maven home path"
-          hint="Runs sync, builds and Maven run configurations. A chosen home is used instead of the project's mvnw."
-        />
-        <PathInput
-          k="languages.java.maven.userSettings"
-          label="User settings file"
-          placeholder="~/.m2/settings.xml"
-          title="Select Maven settings.xml"
-          file
-          hint="Passed as -s (mirrors, servers, proxies)."
-        />
-        <PathInput
-          k="languages.java.maven.localRepository"
-          label="Local repository"
-          placeholder="From settings.xml, else ~/.m2/repository"
-          title="Select Local Repository"
-          hint="Passed as -Dmaven.repo.local."
-        />
       </Section>
     </div>
   );

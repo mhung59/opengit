@@ -37,7 +37,7 @@ ide-clipboard = { path = "crates/ide-clipboard" }
 ide-fonts = { path = "crates/ide-fonts" }
 ide-ssh = { path = "crates/ide-ssh" }
 ide-remote = { path = "crates/ide-remote" }
-ide-host = { path = "crates/ide-host" }
+ide-host = { path = "crates/ide-host", default-features = false }
 ide-notebook = { path = "crates/ide-notebook" }
 
 # serialization & IPC typing

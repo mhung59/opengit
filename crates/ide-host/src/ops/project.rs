@@ -179,9 +179,6 @@ pub fn set_settings(
     // Code style only reaches servers as settings (e.g. jdtls' formatter profile); builds don't depend on it.
     if code_style || toolchain {
         for project in affected() {
-            if toolchain && let Some(bridge) = &project.kotlin_bridge {
-                bridge.schedule();
-            }
             let lsp = project.lsp.clone();
             host.runtime.spawn(async move { lsp.reconfigure().await });
         }

@@ -3,9 +3,9 @@
  * stylesheet, and Editor › Font › Typography Settings as the root's
  * `--fw-code` / `--fw-code-bold`.
  */
-import { useProject } from "@/platform/project";
-import { editorPrefs, fontWeightVars } from "@/platform/editorSettings";
 import { schemeCss } from "@/platform/colorScheme";
+import { editorPrefs, fontWeightVars } from "@/platform/editorSettings";
+import { useProject } from "@/platform/project";
 
 export function installColorScheme(): () => void {
   if (typeof document === "undefined") return () => {};
@@ -28,7 +28,7 @@ export function installColorScheme(): () => void {
   const observer = typeof MutationObserver !== "undefined" ? new MutationObserver(apply) : null;
   observer?.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["data-theme", "data-contrast", "data-color-theme", "data-plugin-theme"],
+    attributeFilter: ["data-theme", "data-contrast", "data-color-theme"],
   });
   return () => {
     unsubscribe();

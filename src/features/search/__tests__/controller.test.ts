@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { FileMatches, SearchQuery } from "@/platform/ipc";
+import { describe, expect, it, vi } from "vitest";
 import { SeController, type SeDeps, type SeSnapshot } from "../everywhere/controller";
 
 function deferred<T>() {
@@ -77,8 +77,8 @@ describe("SeController", () => {
         .items.map((i) => i.key),
     ).toEqual(["f:/p/New.kt"]);
 
-    c.run({ query: "sym", tab: "symbols", includeNonProject: false, extra: {} });
-    c.run({ query: "sym2", tab: "symbols", includeNonProject: false, extra: {} });
+    c.run({ query: "sym", tab: "text", includeNonProject: false, extra: {} });
+    c.run({ query: "sym2", tab: "text", includeNonProject: false, extra: {} });
     expect(deps.cancel).toHaveBeenCalled();
   });
 
@@ -113,34 +113,17 @@ describe("SeController", () => {
     await flush();
     expect(findFiles).toHaveBeenCalledTimes(2);
     expect(findFiles).toHaveBeenLastCalledWith("a", 22);
-    expect(findSymbols).toHaveBeenCalledTimes(2); // classes + symbols once each
+    expect(findSymbols).not.toHaveBeenCalled();
   });
-
-  it("merges LSP symbols after the index answers and ignores unavailable servers", async () => {
-    const lsp = deferred<never[]>();
-    const { c, last } = setup({
-      findSymbols: async () => [
-        {
-          name: "order",
-          kind: "variable",
-          container: null,
-          path: "/p/A.kt",
-          relPath: "A.kt",
-          range: { start: { line: 1, col: 0 }, end: { line: 1, col: 5 } },
-          score: 1,
-          indices: [0],
-        },
-      ],
-      workspaceSymbols: () => lsp.promise,
-    });
+  it("does not query index or language-server symbols in the Git edition", async () => {
+    const findSymbols = vi.fn(async () => []);
+    const workspaceSymbols = vi.fn(async () => []);
+    const { c, last } = setup({ findSymbols, workspaceSymbols });
     c.run({ query: "ord", tab: "symbols", includeNonProject: false, extra: {} });
     await flush();
-    expect(last().sections.get("symbols")!.items).toHaveLength(1);
-    expect(last().sections.get("symbols")!.loading).toBe(true);
-    lsp.reject({ kind: "unavailable", message: "no server" });
-    await flush();
-    expect(last().sections.get("symbols")!.loading).toBe(false);
-    expect(last().sections.get("symbols")!.items).toHaveLength(1);
+    expect(last().sections.has("symbols")).toBe(false);
+    expect(findSymbols).not.toHaveBeenCalled();
+    expect(workspaceSymbols).not.toHaveBeenCalled();
   });
 
   it("streams text matches up to the limit", async () => {

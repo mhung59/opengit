@@ -1,10 +1,10 @@
+import { installColorScheme } from "@/editor/core/colorSchemeRuntime";
 import { readFileSync } from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { _setSchemeSource, schemeCss, schemeTokens } from "./colorScheme";
 import { fontWeightVars, validateEditorExtras } from "./editorSettings";
 import type { Settings } from "./ipc";
 import { useProject } from "./project";
-import { installColorScheme } from "@/editor/core/colorSchemeRuntime";
 
 describe("color schemes", () => {
   beforeAll(() => _setSchemeSource(readFileSync("src/styles/tokens.css", "utf8")));
@@ -32,14 +32,13 @@ describe("color schemes", () => {
     expect(pythonItalic).toContain("--syn-python-static-italic: italic !important");
   });
 
-  it("applies an explicit scheme over a plugin theme of the same base", () => {
+  it("ignores obsolete plugin attributes when resolving built-in schemes", () => {
     const root = document.documentElement;
     root.dataset.theme = "dark";
     root.dataset.pluginTheme = "theme-one/one-dark";
     try {
-      // "Theme default" keeps the plugin theme's own editor colours.
       expect(schemeCss("theme-default", undefined, root)).toBe("");
-      expect(schemeCss("dark", undefined, root)).toContain("--syn-keyword: #cf8e6d !important");
+      expect(schemeCss("dark", undefined, root)).toBe("");
       delete root.dataset.pluginTheme;
       expect(schemeCss("dark", undefined, root)).toBe("");
     } finally {
@@ -47,7 +46,7 @@ describe("color schemes", () => {
     }
   });
 
-  it("re-applies the scheme when a plugin theme of the same base is selected", async () => {
+  it("re-applies an explicit scheme when the built-in palette changes", async () => {
     const root = document.documentElement;
     root.dataset.theme = "dark";
     const previous = useProject.getState().settings;
@@ -56,12 +55,12 @@ describe("color schemes", () => {
     const sheet = () => document.getElementById("openidea-editor-color-scheme")?.textContent ?? "";
     try {
       expect(sheet()).toBe("");
-      root.dataset.pluginTheme = "theme-one/one-dark";
+      root.dataset.colorTheme = "one-dark";
       await Promise.resolve();
       expect(sheet()).toContain("--syn-keyword: #cf8e6d !important");
     } finally {
       dispose();
-      delete root.dataset.pluginTheme;
+      delete root.dataset.colorTheme;
       useProject.setState({ settings: previous });
     }
   });

@@ -3,9 +3,9 @@
  * `[data-mermaid]` placeholder holding the source in `pre > code`; this module
  * turns placeholders into SVG. The library is imported on first use only.
  */
+import { resolveTokenColor, toRgb } from "@/platform/cssColor";
 import { fontsLoaded } from "@/platform/fonts";
 import type { Mermaid } from "mermaid";
-import { resolveTokenColor, toRgb } from "@/platform/cssColor";
 import { attachPanZoom } from "../panZoom";
 
 export const MERMAID_SELECTOR = "[data-mermaid]";
@@ -32,19 +32,19 @@ function loadMermaid(): Promise<Mermaid> {
 /** Theme identity: anything that changes the colours read below. */
 export function themeKey(): string {
   const root = document.documentElement;
-  const { theme = "", contrast = "", colorTheme = "", pluginTheme = "" } = root.dataset;
+  const { theme = "", contrast = "", colorTheme = "" } = root.dataset;
   const accent = root.style.getPropertyValue("--accent");
   const font = getComputedStyle(root).getPropertyValue("--font-ui");
-  return `${theme}|${contrast}|${colorTheme}|${pluginTheme}|${accent}|${font}`;
+  return `${theme}|${contrast}|${colorTheme}|${accent}|${font}`;
 }
 
-/** Calls `cb` when the theme attributes (a plugin theme's included) or the accent on the root change. */
+/** Calls `cb` when the theme attributes or the accent on the root change. */
 export function subscribeTheme(cb: () => void): () => void {
   if (typeof MutationObserver === "undefined") return () => {};
   const observer = new MutationObserver(cb);
   observer.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ["data-theme", "data-contrast", "data-color-theme", "data-plugin-theme", "style"],
+    attributeFilter: ["data-theme", "data-contrast", "data-color-theme", "style"],
   });
   return () => observer.disconnect();
 }

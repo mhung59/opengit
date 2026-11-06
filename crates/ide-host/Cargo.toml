@@ -8,6 +8,14 @@ license.workspace = true
 [[bin]]
 name = "openidea-server"
 path = "src/bin/server.rs"
+required-features = ["ide-services"]
+
+[features]
+# The reusable host/server keeps its IDE APIs; OpenGit opts out of them.
+default = ["ide-services"]
+ide-services = ["project-trust", "dep:ide-dap", "dep:ide-analysis", "dep:ide-coverage", "dep:ide-notebook"]
+# Git clients use normal Git execution; IDE hosts require project approval.
+project-trust = []
 
 [dependencies]
 encoding_rs.workspace = true
@@ -21,10 +29,10 @@ ide-syntax.workspace = true
 ide-search.workspace = true
 ide-lsp.workspace = true
 ide-vcs.workspace = true
-ide-dap.workspace = true
+ide-dap = { workspace = true, optional = true }
 ide-build.workspace = true
-ide-analysis.workspace = true
-ide-coverage.workspace = true
+ide-analysis = { workspace = true, optional = true }
+ide-coverage = { workspace = true, optional = true }
 ide-spell.workspace = true
 ide-terminal.workspace = true
 ide-run.workspace = true
@@ -33,7 +41,7 @@ ide-http.workspace = true
 ide-ssh.workspace = true
 ide-remote.workspace = true
 ide-jsonrpc.workspace = true
-ide-notebook.workspace = true
+ide-notebook = { workspace = true, optional = true }
 ide-tools = { path = "../ide-tools" }
 serde.workspace = true
 serde_json.workspace = true

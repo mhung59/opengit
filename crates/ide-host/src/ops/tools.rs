@@ -5,11 +5,14 @@ use crate::rpc::Dispatcher;
 
 use ide_core::{IdeError, IdeResult, RequestId};
 use ide_sdk::Sdk;
+#[cfg(feature = "ide-services")]
+use ide_tools::ToolInfo;
 use ide_tools::jdk::{JdkReleases, JdkVendor};
-use ide_tools::{InstallEvent, ToolInfo, Tools};
+use ide_tools::{InstallEvent, Tools};
 use std::path::PathBuf;
 
 /// The installer, reporting the executables chosen in the window's settings.
+#[cfg(feature = "ide-services")]
 fn tools(host: &Host, window: &str) -> IdeResult<Tools> {
     host.require_trust(window)?;
     let data = host.local_data_dir.clone();
@@ -28,6 +31,7 @@ fn tools(host: &Host, window: &str) -> IdeResult<Tools> {
 }
 
 /// The language definitions plus the servers defined in the window's settings.
+#[cfg(feature = "ide-services")]
 fn languages(host: &Host, window: &str) -> Vec<ide_language::LanguageConfig> {
     let settings = match host.project(window) {
         Ok(project) => project.settings.effective(),
@@ -50,6 +54,7 @@ fn reconfigure_servers(host: &Host) {
 }
 
 /// Status of every known language server / debug adapter and the languages using it.
+#[cfg(feature = "ide-services")]
 pub async fn tools_list(host: &Host, window: &str) -> IdeResult<Vec<ToolInfo>> {
     let tools = tools(host, window)?;
     let langs = languages(host, window);
@@ -58,6 +63,7 @@ pub async fn tools_list(host: &Host, window: &str) -> IdeResult<Vec<ToolInfo>> {
 
 /// Installs (or reinstalls) a tool into `<app-data>/tools`, streaming output through
 /// `on_event`. Cancel with `cancel_request(request)`.
+#[cfg(feature = "ide-services")]
 pub async fn tools_install(
     host: &Host,
     window: &str,
@@ -84,6 +90,7 @@ pub async fn tools_install(
 }
 
 /// Removes a tool the IDE installed.
+#[cfg(feature = "ide-services")]
 pub async fn tools_uninstall(host: &Host, window: &str, name: String) -> IdeResult<ToolInfo> {
     let tools = tools(host, window)?;
     let langs = languages(host, window);
@@ -157,11 +164,14 @@ pub async fn jdk_download(
 
 /// Commands of this module the remote server answers.
 pub(crate) fn register(d: &mut Dispatcher) {
-    d.add("tools_list", |c| async move { tools_list(&c.host, &c.window).await });
-    d.add("tools_install", |c| async move {
-        tools_install(&c.host, &c.window, c.arg("name")?, c.arg("request")?, c.sender("onEvent")?).await
-    });
-    d.add("tools_uninstall", |c| async move { tools_uninstall(&c.host, &c.window, c.arg("name")?).await });
+    #[cfg(feature = "ide-services")]
+    {
+        d.add("tools_list", |c| async move { tools_list(&c.host, &c.window).await });
+        d.add("tools_install", |c| async move {
+            tools_install(&c.host, &c.window, c.arg("name")?, c.arg("request")?, c.sender("onEvent")?).await
+        });
+        d.add("tools_uninstall", |c| async move { tools_uninstall(&c.host, &c.window, c.arg("name")?).await });
+    }
     d.add("jdk_download_vendors", |c| async move { Ok(jdk_download_vendors(&c.host, &c.window)) });
     d.add("jdk_download_releases", |c| async move {
         jdk_download_releases(&c.host, &c.window, c.arg("vendor")?, c.arg("request")?).await

@@ -398,11 +398,6 @@ export function activeProfileId(): ProfileId {
   return current().id;
 }
 
-/** Overrides of a named profile from the effective settings. */
-export function profileOverrides(id: ProfileId): ProfileOverrides {
-  return overridesOf(inspectionSettings(), id);
-}
-
 /** Validated inspection settings (effective). */
 export function inspectionSettings(): InspectionSettingsValid {
   return validateInspections(obj(useProject.getState().settings).inspections);

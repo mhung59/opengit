@@ -1,3 +1,35 @@
+export {
+  getFileDecoration,
+  setFileDecorations,
+  useFileDecoration,
+  useFileDecorations,
+  type FileDecoration,
+} from "./contributions/fileDecorations";
+export {
+  registerFileEditorProvider,
+  resolveFileEditor,
+  type FileEditorProvider,
+  type FileEditorResolution,
+  type FileEditorResolutionContext,
+} from "./contributions/fileEditors";
+export {
+  projectViewRoots,
+  registerProjectViewRoot,
+  useProjectViewRoots,
+  type ProjectViewRootContribution,
+  type ProjectViewRootEntry,
+} from "./contributions/projectRoots";
+export {
+  provideSettingsSearchIndex,
+  registerSettingsPage,
+  searchableSettings,
+  SettingsFormContext,
+  useSettingsForm,
+  useSettingsPages,
+  type SettingsForm,
+  type SettingsPageContribution,
+  type SettingsSearchEntry,
+} from "./contributions/settings";
 /**
  * Workbench extension points. Features contribute UI here instead of the
  * workbench importing features, so feature folders stay independent:
@@ -8,21 +40,12 @@
  * The workbench renders whatever is registered; the action
  * `toolwindow.<id>` toggles it (registered automatically).
  */
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  type ComponentType,
-  type ReactNode,
-  type RefObject,
-} from "react";
-import type { FileMatches, SearchQuery, RunConfig } from "@/bindings";
+import type { FileMatches, SearchQuery } from "@/bindings";
 import type { MenuItem } from "@/ui/Menu";
 import type { DragData } from "@/ui/pointerDrag";
 import type { TreeReorder } from "@/ui/Tree";
+import { useEffect, useRef, type ComponentType, type ReactNode, type RefObject } from "react";
 import { create } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 
 export type ToolWindowAnchor = "left" | "right" | "bottom";
 
@@ -361,77 +384,6 @@ export const provideWelcomeView = (component: ComponentType) => provideSlot("wel
 export const provideProjectPopup = (component: ComponentType<ProjectPopupProps>) =>
   provideSlot("projectPopup", component);
 
-// ---------------------------------------------------------------------------
-// File editors: `openFile` asks providers whether a path opens in another
-// editor kind (images, hex view) before the text editor. A provider may probe
-// the file (size, binary content); the first non-null answer wins.
-
-/** Resources acquired while resolving belong to the request until its tab is admitted. */
-export interface FileEditorResolutionContext {
-  /** Commit is synchronous: no close/project transition may interleave with tab insertion. */
-  onAdmission(commit: () => void, rollback: () => Promise<void>): void;
-}
-
-export interface FileEditorResolution {
-  input: EditorInput;
-  admit(): void;
-  rollback(): Promise<void>;
-}
-
-export interface FileEditorProvider {
-  id: string;
-  /** Lower asks first. Default 100. */
-  order?: number;
-  resolve(path: string, context: FileEditorResolutionContext): EditorInput | null | Promise<EditorInput | null>;
-}
-
-const fileEditorProviders = new Map<string, FileEditorProvider>();
-
-export function registerFileEditorProvider(p: FileEditorProvider): () => void {
-  fileEditorProviders.set(p.id, p);
-  return () => {
-    if (fileEditorProviders.get(p.id) === p) fileEditorProviders.delete(p.id);
-  };
-}
-
-/** The non-text editor input for `path`, or null for the text editor. Provider failures fall through. */
-export async function resolveFileEditor(path: string): Promise<FileEditorResolution | null> {
-  const providers = [...fileEditorProviders.values()].sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
-  for (const p of providers) {
-    const acquisitions: Array<{ commit: () => void; rollback: () => Promise<void> }> = [];
-    let admitted = false;
-    const rollback = async () => {
-      if (admitted) return;
-      const results = await Promise.allSettled(acquisitions.splice(0).map((a) => Promise.resolve().then(a.rollback)));
-      const errors = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
-      if (errors.length)
-        throw new AggregateError(
-          errors.map((r) => r.reason),
-          "File editor acquisition cleanup failed",
-        );
-    };
-    try {
-      const input = await p.resolve(path, {
-        onAdmission: (commit, release) => acquisitions.push({ commit, rollback: release }),
-      });
-      if (input)
-        return {
-          input,
-          admit: () => {
-            for (const acquisition of acquisitions) acquisition.commit();
-            admitted = true;
-            acquisitions.length = 0;
-          },
-          rollback,
-        };
-    } catch (e) {
-      console.warn(`file editor provider ${p.id} failed`, e);
-    }
-    await rollback();
-  }
-  return null;
-}
-
 /**
  * Text editor wrappers: render around the text editor of matching files, e.g.
  * Markdown's "Editor and Preview" split. The wrapper must render `children`
@@ -693,221 +645,6 @@ export function showFindResults(source: FindResultsSource) {
 }
 
 // ---------------------------------------------------------------------------
-// File decorations: colour / badge / tooltip for a path, shown by the project
-// tree, editor tabs, Search Everywhere, etc. Providers (VCS status, problems)
-// push decorations into this store; consumers read with `useFileDecoration`.
-
-export interface FileDecoration {
-  /** CSS colour, normally a token like `var(--vcs-modified)`. */
-  color?: string;
-  /** CSS colour tinting the editor tab (a data source's colour on its console). */
-  tint?: string;
-  /** Short badge text, e.g. a problem count. */
-  badge?: string;
-  tooltip?: string;
-  /** Wavy-underline style emphasis for files with errors (IDEA red underline). */
-  error?: boolean;
-  /** Dim the entry (ignored/excluded). */
-  faded?: boolean;
-  /** Also decorate ancestor folders (VCS changes, errors). */
-  propagate?: boolean;
-  /** The path is a folder whose whole content shares this decoration (untracked / ignored folder). */
-  subtree?: boolean;
-}
-
-interface FileDecorationsState {
-  /** provider id → (path → decoration). Later providers win per field. */
-  providers: Map<string, Map<string, FileDecoration>>;
-  /** Folder paths that contain decorated descendants, per provider. */
-  folders: Map<string, Map<string, FileDecoration>>;
-  /** `subtree` decorations per provider: folder → decoration for everything below it. */
-  subtrees: Map<string, Map<string, FileDecoration>>;
-}
-
-export const useFileDecorations = create<FileDecorationsState>(() => ({
-  providers: new Map(),
-  folders: new Map(),
-  subtrees: new Map(),
-}));
-
-const providerOrder = ["vcs", "problems"];
-
-/** Replaces all decorations of one provider. */
-export function setFileDecorations(provider: string, decorations: Map<string, FileDecoration>) {
-  const folders = new Map<string, FileDecoration>();
-  const subtrees = new Map<string, FileDecoration>();
-  for (const [path, d] of decorations) {
-    if (d.subtree) subtrees.set(path, { color: d.color, tooltip: d.tooltip, faded: d.faded, error: d.error });
-    if (!d.propagate) continue;
-    for (let i = path.lastIndexOf("/"); i > 0; i = path.lastIndexOf("/", i - 1)) {
-      const dir = path.slice(0, i);
-      const prev = folders.get(dir);
-      folders.set(dir, { color: prev?.color ?? d.color, error: prev?.error || d.error });
-    }
-  }
-  useFileDecorations.setState((s) => ({
-    providers: new Map(s.providers).set(provider, decorations),
-    folders: new Map(s.folders).set(provider, folders),
-    subtrees: new Map(s.subtrees).set(provider, subtrees),
-  }));
-}
-
-/** Nearest `subtree` decoration of an ancestor folder of `path`. */
-function inherited(path: string, subtrees: Map<string, FileDecoration> | undefined): FileDecoration | undefined {
-  if (!subtrees?.size) return undefined;
-  for (let i = path.lastIndexOf("/"); i > 0; i = path.lastIndexOf("/", i - 1)) {
-    const d = subtrees.get(path.slice(0, i));
-    if (d) return d;
-  }
-  return undefined;
-}
-
-function merged(path: string, s: FileDecorationsState): FileDecoration | undefined {
-  let out: FileDecoration | undefined;
-  const ids = [...s.providers.keys()].sort((a, b) => providerOrder.indexOf(a) - providerOrder.indexOf(b));
-  for (const id of ids) {
-    const d = s.providers.get(id)?.get(path) ?? s.folders.get(id)?.get(path) ?? inherited(path, s.subtrees.get(id));
-    if (d) out = { ...out, ...d };
-  }
-  return out;
-}
-
-export function getFileDecoration(path: string): FileDecoration | undefined {
-  return merged(path, useFileDecorations.getState());
-}
-
-const NONE: FileDecoration = {};
-
-/** Reactive decoration for `path` (empty object when undecorated). */
-export function useFileDecoration(path: string): FileDecoration {
-  return useFileDecorations(useShallow((s) => merged(path, s) ?? NONE));
-}
-
-// ---------------------------------------------------------------------------
-// Settings pages, shown in the Settings dialog (⌘,) tree. Features contribute
-// their own pages (e.g. Languages & Servers, Plugins); the settings feature
-// renders the tree, search and the page host.
-
-export interface SettingsPageContribution {
-  /** Dotted path defines nesting, e.g. `languages.servers`. */
-  id: string;
-  title: string;
-  /** Parent group title for top-level grouping, e.g. "Editor", "Tools". */
-  group?: string;
-  order?: number;
-  /** Extra words matched by the settings search. */
-  keywords?: string[];
-  /** Omitted: the page lists links to its sub-pages. */
-  component?: ComponentType;
-  /** The page edits settings that a project can override (Global / This project switch). */
-  projectScope?: boolean;
-}
-
-/**
- * What a settings page edits through: values of the page's scope with the
- * edits not applied yet. Edits are written on Apply / OK and dropped on Cancel.
- */
-export interface SettingsForm {
-  scope: "global" | "project";
-  /** Value of a dotted key (map entries too, e.g. `languageServers.ruff.args`). */
-  useValue(key: string): unknown;
-  /** Stages a value; `null` removes the key on Apply. */
-  set(key: string, value: unknown): void;
-}
-
-export const SettingsFormContext = createContext<SettingsForm | null>(null);
-
-/** The form of the settings page being shown (provided by the Settings dialog). */
-export function useSettingsForm(): SettingsForm {
-  const form = useContext(SettingsFormContext);
-  if (!form) throw new Error("useSettingsForm outside a settings page");
-  return form;
-}
-
-export const useSettingsPages = create<{ pages: Map<string, SettingsPageContribution> }>(() => ({ pages: new Map() }));
-
-export function registerSettingsPage(page: SettingsPageContribution): () => void {
-  useSettingsPages.setState((s) => ({ pages: new Map(s.pages).set(page.id, page) }));
-  return () =>
-    useSettingsPages.setState((s) => {
-      if (s.pages.get(page.id) !== page) return s;
-      const pages = new Map(s.pages);
-      pages.delete(page.id);
-      return { pages };
-    });
-}
-
-/** A searchable settings entry: a page, or an option label on it (Search Everywhere's "Settings: …" items). */
-export interface SettingsSearchEntry {
-  pageId: string;
-  /** Page title or option label. */
-  title: string;
-  /** Breadcrumb of the page ("Editor", "General"). */
-  path: string[];
-  /** Extra words that match this entry (page keywords). */
-  keywords?: string[];
-}
-
-let settingsSearchIndex: (() => Promise<SettingsSearchEntry[]>) | null = null;
-
-/** The settings feature provides its search index (pages load lazily, so it is async). */
-export function provideSettingsSearchIndex(index: () => Promise<SettingsSearchEntry[]>): () => void {
-  settingsSearchIndex = index;
-  return () => {
-    if (settingsSearchIndex === index) settingsSearchIndex = null;
-  };
-}
-
-export function searchableSettings(): Promise<SettingsSearchEntry[]> {
-  return settingsSearchIndex ? settingsSearchIndex() : Promise.resolve([]);
-}
-
-// ---------------------------------------------------------------------------
-// Project view roots shown below the project ("External Libraries", "Scratches").
-
-export interface ProjectViewRootEntry {
-  label: string;
-  /** Icon name from `ui/icons`. */
-  icon: string;
-  /** Folder whose contents the node lists (outside the project); omitted for a group of `children`. */
-  path?: string;
-  /** Child nodes of a group node (one per SDK, then its library folders). */
-  children?: readonly ProjectViewRootEntry[];
-  /** Grey text after the label ("library root"). */
-  detail?: string;
-  /** Library sources: shown read-only (no new / rename / move / delete). */
-  readOnly?: boolean;
-}
-
-export interface ProjectViewRootContribution extends ProjectViewRootEntry {
-  id: string;
-  /** Lower first. */
-  order?: number;
-  /** Which project view mode lists it besides "Project" ("Scratches and Consoles"). */
-  scope?: "scratches";
-}
-
-export const useProjectViewRoots = create<{ roots: Map<string, ProjectViewRootContribution> }>(() => ({
-  roots: new Map(),
-}));
-
-export function registerProjectViewRoot(root: ProjectViewRootContribution): () => void {
-  useProjectViewRoots.setState((s) => ({ roots: new Map(s.roots).set(root.id, root) }));
-  return () =>
-    useProjectViewRoots.setState((s) => {
-      if (s.roots.get(root.id) !== root) return s;
-      const roots = new Map(s.roots);
-      roots.delete(root.id);
-      return { roots };
-    });
-}
-
-/** Registered project view roots in display order. */
-export function projectViewRoots(map: ReadonlyMap<string, ProjectViewRootContribution>): ProjectViewRootContribution[] {
-  return [...map.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
-}
-
-// ---------------------------------------------------------------------------
 // Context menu groups: features add items to the editor, project view and
 // editor tab context menus (IDEA's EditorPopupMenu / ProjectViewPopupMenu /
 // EditorTabPopupMenu / EditorGutterPopupMenu groups), e.g. "Run 'hi.ts'" from features/run.
@@ -1005,141 +742,6 @@ export async function prepareMenuGroups(menu: ContextMenuId, ctx: MenuGroupConte
   let timer: ReturnType<typeof setTimeout> | undefined;
   await Promise.race([Promise.all(pending), new Promise<void>((r) => (timer = setTimeout(r, timeoutMs)))]);
   clearTimeout(timer);
-}
-
-// ---------------------------------------------------------------------------
-// Run executors beside Run and Debug (IDEA's "Run with Coverage", "Profile"),
-// contributed by features and offered by features/run: the run widget's ⋮
-// menu, the gutter ▶ popup and the context menus' "More Run/Debug".
-
-/** What an executor launches for a configuration, and what happens once it exits. */
-export interface ExecutorLaunch {
-  /** Launched instead of the configuration (the Run tab still shows the configuration). */
-  launch: RunConfig;
-  /** The process exited (not called when it failed to start). */
-  finished(result: { exitCode: number | null; stopped: boolean }): void;
-}
-
-export interface RunExecutorContribution {
-  /** `coverage`, `profiler`. */
-  id: string;
-  /** Menu label for a configuration or context, e.g. `Run 'tests' with Coverage`. */
-  label(name: string): string;
-  icon: string;
-  /** Action that runs the selected configuration with this executor (shortcut shown in menus). */
-  action: string;
-  /** Lower first. */
-  order?: number;
-  /** Cheap check whether this executor can run `config` (the menu shows it only then). */
-  supports(config: RunConfig): boolean;
-  /** Plans the launch; null when it can't run (the executor has said why). */
-  prepare(config: RunConfig): Promise<ExecutorLaunch | null>;
-}
-
-export const useRunExecutors = create<{ executors: Map<string, RunExecutorContribution> }>(() => ({
-  executors: new Map(),
-}));
-
-export function registerRunExecutor(executor: RunExecutorContribution): () => void {
-  useRunExecutors.setState((s) => ({ executors: new Map(s.executors).set(executor.id, executor) }));
-  return () =>
-    useRunExecutors.setState((s) => {
-      if (s.executors.get(executor.id) !== executor) return s;
-      const executors = new Map(s.executors);
-      executors.delete(executor.id);
-      return { executors };
-    });
-}
-
-/** Registered executors, in order. */
-export function runExecutors(map = useRunExecutors.getState().executors): RunExecutorContribution[] {
-  return [...map.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));
-}
-
-// ---------------------------------------------------------------------------
-// Run configuration types (IDEA's "Add New Configuration" list), contributed by
-// features and edited by features/run. A type is declarative: its form fields
-// write `RunConfig.params`, and `commandLine` turns them into what is launched.
-
-export interface RunConfigTypeField {
-  /** Key in `RunConfig.params`. */
-  key: string;
-  label: string;
-  /**
-   * `checkbox` values are `"true"` or absent. `output` is read-only text computed by
-   * `value` (not stored), with a Copy button (e.g. the JDWP agent for the remote JVM).
-   */
-  control?: "text" | "textarea" | "select" | "checkbox" | "output";
-  mono?: boolean;
-  /** Visible lines of a `textarea` (default 4). */
-  rows?: number;
-  placeholder?: string;
-  options?: ReadonlyArray<{ value: string; label: string }>;
-  /** Values offered while typing (e.g. the scripts of detected configurations). */
-  suggestions?(configs: readonly RunConfig[], params: Readonly<Record<string, string>>): string[];
-  required?: boolean;
-  visible?(params: Readonly<Record<string, string>>): boolean;
-  /** An `output` field's text. */
-  value?(params: Readonly<Record<string, string>>): string;
-  /** Why a non-empty value is invalid, or null. */
-  validate?(value: string, params: Readonly<Record<string, string>>): string | null;
-  /** Shown under the control. */
-  hint?: string;
-}
-
-export interface RunConfigTypeContribution {
-  /** Stored as `RunConfig.kind`. */
-  id: string;
-  label: string;
-  icon: string;
-  description?: string;
-  /** Parent node in "Add New Configuration" (e.g. `Docker`). */
-  group?: string;
-  /** Params of a new configuration (before templates apply). */
-  defaults?: Readonly<Record<string, string>>;
-  fields: readonly RunConfigTypeField[];
-  /**
-   * What is launched for `params`; null when the type runs no process itself (Compound).
-   * `stop`: a shell command line run on Stop before the process is signalled (`docker stop …`).
-   */
-  commandLine(
-    params: Readonly<Record<string, string>>,
-  ): { command: string; args: string[]; cwd?: string | null; stop?: string | null } | null;
-  /** Params that reproduce a configuration made elsewhere (detection, older files); null when it doesn't fit. */
-  paramsFrom?(config: RunConfig): Record<string, string> | null;
-  /** The type's fields set the working directory (no separate field). */
-  ownsWorkingDirectory?: boolean;
-  /** "Emulate terminal in output console" applies (default true). */
-  terminal?: boolean;
-  /** Adjusts what is launched right before it starts (e.g. the environment selecting a Docker daemon). */
-  prepareLaunch?(config: RunConfig): Promise<RunConfig>;
-  /**
-   * Only Debug applies: the configuration attaches a debugger and launches no process
-   * (Remote JVM Debug, Go Remote). `commandLine` returns null.
-   */
-  debugOnly?: boolean;
-  /** `RunConfig.debugAdapter` of a new configuration. */
-  debugAdapter?: string;
-}
-
-export const useRunConfigTypes = create<{ types: Map<string, RunConfigTypeContribution> }>(() => ({
-  types: new Map(),
-}));
-
-export function registerRunConfigType(type: RunConfigTypeContribution): () => void {
-  useRunConfigTypes.setState((s) => ({ types: new Map(s.types).set(type.id, type) }));
-  return () =>
-    useRunConfigTypes.setState((s) => {
-      if (s.types.get(type.id) !== type) return s;
-      const types = new Map(s.types);
-      types.delete(type.id);
-      return { types };
-    });
-}
-
-/** Registered configuration types, by label. */
-export function runConfigTypes(map = useRunConfigTypes.getState().types): RunConfigTypeContribution[] {
-  return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
 
 // ---------------------------------------------------------------------------
@@ -1274,50 +876,6 @@ export function localChangedPaths(
 }
 
 // ---------------------------------------------------------------------------
-// Run Anything (⌃⌃) providers: features offer entries for the typed text
-// (run configurations, `mvn …` / `gradle …` command lines) and may take over
-// running a whole command line; anything else runs as a shell command.
-
-export interface RunAnythingItem {
-  /** Stable within the provider. */
-  key: string;
-  label: string;
-  detail?: string;
-  icon?: string;
-  /** Text put in the field when the item is completed with Tab (default: label). */
-  completion?: string;
-  run(): void | Promise<void>;
-}
-
-export interface RunAnythingProvider {
-  id: string;
-  /** Group heading, e.g. "Run Configurations". */
-  group: string;
-  /** Lower first. */
-  order?: number;
-  /** Matching entries for the field's text (cheap, synchronous). */
-  items(query: string): RunAnythingItem[];
-  /** Runs `line` when it belongs to this provider (`mvn clean`); false leaves it to the next one. */
-  execute?(line: string): boolean | Promise<boolean>;
-}
-
-const runAnythingProviders = new Map<string, RunAnythingProvider>();
-
-export function registerRunAnythingProvider(p: RunAnythingProvider): () => void {
-  runAnythingProviders.set(p.id, p);
-  return () => {
-    if (runAnythingProviders.get(p.id) === p) runAnythingProviders.delete(p.id);
-  };
-}
-
-/** Registered providers in order. */
-export function runAnythingProviderList(): RunAnythingProvider[] {
-  return [...runAnythingProviders.values()].sort(
-    (a, b) => (a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id),
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Status bar info text (IDEA's status bar message, e.g. "3 of 12" after Next
 // Occurrence). Cleared by the next message or after a while.
 
@@ -1333,33 +891,3 @@ export function showStatusInfo(text: string, ms = 8000) {
     if (useStatusInfo.getState().seq === seq) useStatusInfo.setState({ text: null });
   }, ms);
 }
-
-/** Live debugger roots exposed to the run toolbar without coupling feature stores. */
-export interface DebugRunSession {
-  id: number;
-  configId: string | null;
-  name: string;
-  startedAt: number;
-  paused: boolean;
-  rerun: (() => void) | null;
-  stop: () => void;
-  resume: () => void;
-}
-
-/** Configured debugger roots retained by the debugger, including finished output. */
-export interface DebugServiceSession {
-  id: number;
-  config: RunConfig;
-  startedAt: number;
-  status: "starting" | "running" | "paused" | "terminated";
-  processId: number | null;
-  rerun: (() => void) | null;
-  stop: (options?: { stopProcess?: boolean }) => Promise<void>;
-  show: () => void;
-}
-
-export const useDebugRunSessions = create<{
-  sessions: DebugRunSession[];
-  serviceSessions: DebugServiceSession[];
-  Console: ComponentType<{ sessionId: number }> | null;
-}>(() => ({ sessions: [], serviceSessions: [], Console: null }));

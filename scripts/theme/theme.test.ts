@@ -8,17 +8,12 @@ import {
   pluginManifest,
   UI_KEYS,
 } from "./intellij.ts";
-import { referenceMarkdown, stripJsonComments, themeTokenGroups, tokenSets, withReference } from "./tokens.ts";
+import { referenceMarkdown, themeTokenGroups, tokenSets, withReference } from "./tokens.ts";
 
 const read = (p: string) => readFileSync(p, "utf8");
 const css = read("src/styles/tokens.css");
 const groups = themeTokenGroups(css);
 const sets = tokenSets(groups);
-const TEMPLATE = "templates/theme-plugin";
-const themeSrc = read(`${TEMPLATE}/themes/harbor-night.theme.json`);
-const schemeSrc = read(`${TEMPLATE}/themes/harbor-night.scheme.json`);
-const theme = JSON.parse(stripJsonComments(themeSrc)) as { id: string; kind: string; tokens: Record<string, string> };
-const scheme = JSON.parse(stripJsonComments(schemeSrc)) as { tokens: Record<string, string> };
 
 const sorted = (xs: Iterable<string>) => [...xs].sort();
 
@@ -41,39 +36,6 @@ describe("theme token reference", () => {
   it("is current in docs/plugins/themes.md (run pnpm gen:theme-docs)", () => {
     const doc = read("docs/plugins/themes.md");
     expect(withReference(doc, referenceMarkdown(groups))).toBe(doc);
-  });
-});
-
-describe("theme plugin template", () => {
-  it("sets every UI token in the theme file and every editor token in the scheme file", () => {
-    // A failure here means tokens.css gained (or lost) a themeable token:
-    // add it to templates/theme-plugin/themes/*.json, then run pnpm gen:theme-docs.
-    expect(sorted(Object.keys(theme.tokens))).toEqual(sorted(sets.ui));
-    expect(sorted(Object.keys(scheme.tokens))).toEqual(sorted(sets.scheme));
-  });
-
-  it("groups tokens under the section comments of tokens.css", () => {
-    for (const g of groups) {
-      const src = g.scheme ? schemeSrc : themeSrc;
-      const heading = `// ${g.title.charAt(0).toUpperCase()}${g.title.slice(1)}`;
-      expect(src, heading).toContain(heading);
-      const at = src.indexOf(heading);
-      for (const t of g.tokens) expect(src.indexOf(`"${t.name}"`), t.name).toBeGreaterThan(at);
-    }
-  });
-
-  it("uses only values the plugin host accepts", () => {
-    for (const [k, v] of Object.entries({ ...theme.tokens, ...scheme.tokens })) {
-      expect(/[;{}<>\\\n]|url\(|image\(/i.test(v), `${k}: ${v}`).toBe(false);
-    }
-    expect(theme.kind).toBe("dark");
-  });
-
-  it("is referenced by its manifest", () => {
-    const manifest = read(`${TEMPLATE}/plugin.toml`);
-    expect(manifest).toContain('path = "themes/harbor-night.theme.json"');
-    expect(manifest).toContain('editor-scheme = "themes/harbor-night.scheme.json"');
-    expect(manifest).not.toMatch(/^wasm\s*=/m);
   });
 });
 

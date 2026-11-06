@@ -4,14 +4,13 @@
  * with Go to Declaration; their `@abstractmethod`s the class lacks get stubs
  * at the end of its body.
  */
+import { commands } from "@/platform/ipc";
 import { indentUnit } from "@codemirror/language";
 import type { EditorView } from "@codemirror/view";
-import { commands } from "@/platform/ipc";
-import type { ContributedIntention } from "@/editor/api";
-import { docOf, lspRequest, reportLspError } from "./lsp";
-import { offsetToPos } from "./positions";
 import { readFileLines } from "./files";
 import { showHint } from "./hint";
+import { docOf, lspRequest, reportLspError } from "./lsp";
+import { offsetToPos } from "./positions";
 
 const CLASS_HEADER = /^(\s*)class\s+\w+\s*\((.*)\)\s*:/;
 const CLASS = /^\s*class\s/;
@@ -191,19 +190,4 @@ export async function implementPythonAbstractMethods(view: EditorView): Promise<
       : { from: state.doc.line(end).to, insert: `\n\n${stubs}` };
   view.dispatch({ changes, userEvent: "input.complete", scrollIntoView: true });
   return true;
-}
-
-/** The bulb on a Python class header with bases. */
-export function pythonMemberIntentions(view: EditorView): ContributedIntention[] {
-  if (!isPython(view)) return [];
-  const line = view.state.doc.lineAt(view.state.selection.main.head);
-  if (!bases(line.text).length) return [];
-  return [
-    {
-      id: "python.implementAbstract",
-      label: "Implement abstract methods",
-      icon: "bulb",
-      run: () => void implementPythonAbstractMethods(view),
-    },
-  ];
 }

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_SSH_CONFIG, type SshConfigValid } from "@/platform/remoteSettings";
+
 import { answerAskpass, askpassAnswer, dropAskpass, enqueueAskpass, useAskpass } from "./askpass";
-import { sessionItems } from "./session";
 
 describe("askpass queue", () => {
   beforeEach(() => useAskpass.setState({ queue: [] }));
@@ -37,39 +36,5 @@ describe("askpass queue", () => {
     expect(askpassAnswer("confirm", { confirm: false })).toBe("no");
     expect(askpassAnswer("secret", null)).toBeNull();
     expect(askpassAnswer("confirm", null)).toBeNull();
-  });
-});
-
-describe("Start SSH Session chooser", () => {
-  const config = (patch: Partial<SshConfigValid>): SshConfigValid => ({ ...DEFAULT_SSH_CONFIG, ...patch });
-
-  it("lists configurations, then a way to edit them", () => {
-    const start = vi.fn();
-    const configure = vi.fn();
-    const items = sessionItems(
-      [
-        config({ id: "a", name: "Dev box", host: "box", user: "dev", port: 2222 }),
-        config({ id: "b", host: "bastion" }),
-        config({ id: "c", name: "Empty" }),
-      ],
-      start,
-      configure,
-    );
-    expect(items.map((i) => [i.label, i.detail])).toEqual([
-      ["Dev box", "dev@box:2222"],
-      ["bastion", undefined],
-      ["Empty", undefined],
-      ["Edit SSH Configurations…", undefined],
-    ]);
-    expect(items[2]!.disabled).toBeTruthy();
-    void items[0]!.run();
-    expect(start).toHaveBeenCalledWith("a");
-    void items[3]!.run();
-    expect(configure).toHaveBeenCalled();
-  });
-
-  it("offers to add one when there are none", () => {
-    const items = sessionItems([], vi.fn(), vi.fn());
-    expect(items.map((i) => i.label)).toEqual(["No SSH configurations. Add one…"]);
   });
 });

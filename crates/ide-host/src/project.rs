@@ -7,7 +7,7 @@ use ide_index::ProjectIndex;
 use ide_language::{FileTypes, LanguageRegistry, SyntaxCache};
 use ide_lsp::LspManager;
 use ide_syntax::StructureService;
-use ide_text::{AppliedChange, ByteEdit};
+use ide_text::ByteEdit;
 use ide_vcs::{Repo, Repos};
 use ide_vfs::Watcher;
 use ide_workspace::documents::DocumentObserver;
@@ -45,8 +45,8 @@ pub struct Project {
     /// Superseded launch snapshots retained until this project session ends.
     pub(crate) java_launch_snapshots: Mutex<crate::ops::java::cache::Session>,
     /// Native notebooks and owned kernels, scoped to this project incarnation.
+    #[cfg(feature = "ide-services")]
     pub notebooks: Arc<crate::notebook::NotebookService>,
-    pub(crate) kotlin_bridge: Option<Arc<crate::kotlin_bridge::KotlinBridge>>,
     pub(crate) watcher: Watcher,
     /// Watchers of the Project Structure content roots outside the project folder.
     pub(crate) content_watchers: Mutex<Vec<(PathBuf, Watcher)>>,
@@ -69,7 +69,7 @@ impl Host {
         }
         self.close_project(window);
         let sink: SharedSink = (self.sink_for)(window);
-        let trusted = Arc::new(AtomicBool::new(self.trust.trusted(&root)?));
+        let trusted = Arc::new(AtomicBool::new(self.trust.execution_allowed(&root)?));
         let settings = Arc::new(SettingsStore::load(&self.config_dir, Some(&root)));
         let languages = Arc::new(self.languages.fork());
         languages.set_file_types(FileTypes::from_settings(&settings.effective().files, Some(&root)));
@@ -107,6 +107,7 @@ impl Host {
             )?
         };
         let project_key = project_key(&root);
+        #[cfg(feature = "ide-services")]
         let notebooks = crate::notebook::NotebookService::new(
             self.local_data_dir.join("notebook-runtime").join(uuid::Uuid::new_v4().to_string()),
             sink.clone(),
@@ -130,8 +131,8 @@ impl Host {
             java_launch_snapshots: Mutex::new(crate::ops::java::cache::Session::new(
                 self.local_data_dir.join("cache").join(&project_key).join("build"),
             )),
+            #[cfg(feature = "ide-services")]
             notebooks,
-            kotlin_bridge: None,
             watcher,
             content_watchers: Mutex::new(Vec::new()),
             _scratch_watcher: None,
@@ -183,6 +184,7 @@ impl Host {
         documents.add_observer(Arc::new(HistoryObserver(history.clone())));
         let watcher = light_watcher(&dir, &sink, &documents, &history)?;
         let project_key = project_key(&dir);
+        #[cfg(feature = "ide-services")]
         let notebooks = crate::notebook::NotebookService::new(
             self.local_data_dir.join("notebook-runtime").join(uuid::Uuid::new_v4().to_string()),
             sink.clone(),
@@ -205,8 +207,8 @@ impl Host {
             java_launch_snapshots: Mutex::new(crate::ops::java::cache::Session::new(
                 self.local_data_dir.join("cache").join(&project_key).join("build"),
             )),
+            #[cfg(feature = "ide-services")]
             notebooks,
-            kotlin_bridge: None,
             watcher,
             content_watchers: Mutex::new(Vec::new()),
             _scratch_watcher: None,
@@ -500,15 +502,9 @@ impl Project {
             if watchers.iter().any(|(p, _)| *p == r) {
                 continue;
             }
-            if let Some(w) = content_root_watcher(
-                &r,
-                &excludes,
-                &self.sink,
-                &self.index,
-                &self.documents,
-                &self.history,
-                self.kotlin_bridge.as_ref(),
-            ) {
+            if let Some(w) =
+                content_root_watcher(&r, &excludes, &self.sink, &self.index, &self.documents, &self.history)
+            {
                 watchers.push((r, w));
             }
         }
@@ -640,9 +636,7 @@ fn content_root_watcher(
     index: &Arc<ProjectIndex>,
     documents: &Arc<Documents>,
     history: &Arc<LocalHistory>,
-    kotlin_bridge: Option<&Arc<crate::kotlin_bridge::KotlinBridge>>,
 ) -> Option<Watcher> {
-    let kotlin_bridge = kotlin_bridge.cloned();
     let (index, documents, history) = (index.clone(), documents.clone(), history.clone());
     Watcher::start(
         dir,
@@ -651,9 +645,6 @@ fn content_root_watcher(
         Box::new(move |batch| {
             let changed: Vec<PathBuf> = batch.created.iter().chain(&batch.modified).cloned().collect();
             index.update(&changed, &batch.removed);
-            if let Some(bridge) = &kotlin_bridge {
-                bridge.files_changed(changed.iter().chain(&batch.removed));
-            }
             documents.on_disk_changed(&changed);
             record_external_changes(&history, &changed, &batch.removed);
         }),
@@ -662,6 +653,7 @@ fn content_root_watcher(
     .ok()
 }
 
+#[cfg(any(test, feature = "ide-services"))]
 pub(crate) fn unlinked_maven_poms(root: &Path, settings: &ide_core::settings::Settings) -> Vec<PathBuf> {
     ide_build::maven::UnlinkedProjects::load(root, &settings.languages.java.maven).poms().map(PathBuf::from).collect()
 }
@@ -693,38 +685,6 @@ pub(crate) fn project_key(root: &Path) -> String {
     format!("{h:016x}")
 }
 
-struct LspObserver(Arc<LspManager>);
-
-impl DocumentObserver for LspObserver {
-    fn opened(&self, info: &DocumentInfo) {
-        // Language servers choke on huge files (IDEA disables code insight too);
-        // changes to documents never opened on a server are ignored.
-        if info.large {
-            return;
-        }
-        match &info.uri {
-            Some(uri) => self.0.did_open_virtual(info.id, uri, &info.language, info.version, &info.text),
-            None => self.0.did_open(info.id, &info.path, &info.language, info.version, &info.text),
-        }
-    }
-    fn changed(
-        &self,
-        doc: ide_core::DocId,
-        _path: &Path,
-        version: u32,
-        changes: &[AppliedChange],
-        full_text: &dyn Fn() -> String,
-    ) {
-        self.0.did_change(doc, version, changes, full_text);
-    }
-    fn saved(&self, doc: ide_core::DocId, _path: &Path, text: &str) {
-        self.0.did_save(doc, text);
-    }
-    fn closed(&self, doc: ide_core::DocId, _path: &Path) {
-        self.0.did_close(doc);
-    }
-}
-
 /// Feeds document edits into the per-project syntax tree cache.
 struct SyntaxObserver(Arc<SyntaxCache>);
 
@@ -750,62 +710,6 @@ impl DocumentObserver for HistoryObserver {
             tracing::warn!("local history: {e}");
         }
     }
-}
-
-/// Uploads saved files: remote files' local copies, and automatic upload to the default server.
-struct DeployObserver {
-    trusted: Arc<AtomicBool>,
-    remote: Arc<ide_remote::RemoteService>,
-    settings: Arc<SettingsStore>,
-    root: PathBuf,
-    sink: SharedSink,
-    runtime: tokio::runtime::Handle,
-}
-
-impl DocumentObserver for DeployObserver {
-    fn saved(&self, _doc: ide_core::DocId, path: &Path, _text: &str) {
-        if !self.trusted.load(Ordering::Acquire) {
-            return;
-        }
-        let (remote, settings, root, sink, path) =
-            (self.remote.clone(), self.settings.clone(), self.root.clone(), self.sink.clone(), path.to_path_buf());
-        self.runtime.spawn(async move {
-            if let Some(result) = remote.on_saved(&settings.effective(), &root, &path).await {
-                notify_transfer(&sink, "Upload", &path, result);
-            }
-        });
-    }
-}
-
-fn delete_deployed(
-    runtime: &tokio::runtime::Handle,
-    remote: Arc<ide_remote::RemoteService>,
-    settings: Arc<SettingsStore>,
-    root: PathBuf,
-    removed: Vec<PathBuf>,
-    sink: SharedSink,
-) {
-    runtime.spawn(async move {
-        if let Some(result) = remote.on_deleted(&settings.effective(), &root, &removed).await {
-            let first = removed.first().cloned().unwrap_or_default();
-            notify_transfer(&sink, "Delete on server", &first, result);
-        }
-    });
-}
-
-/// Reports a failed automatic transfer (successes stay quiet).
-fn notify_transfer(sink: &SharedSink, what: &str, path: &Path, result: IdeResult<ide_remote::TransferReport>) {
-    let body = match result {
-        Ok(r) if r.errors.is_empty() => return,
-        Ok(r) => r.errors.iter().map(|e| format!("{}: {}", e.path, e.message)).collect::<Vec<_>>().join("\n"),
-        Err(e) => e.message,
-    };
-    let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-    sink.emit(IdeEvent::Notify {
-        level: ide_core::event::NotifyLevel::Error,
-        title: format!("{what} failed: {name}"),
-        body: Some(body),
-    });
 }
 
 /// Settings › Version Control › Git › Path to Git executable (empty = auto-detect).
@@ -863,6 +767,7 @@ mod maven_linkage_tests {
     }
 }
 
+#[cfg(test)]
 fn vcs_path_changed(path: &Path) -> bool {
     !path.ends_with(".git/index") || !ide_vcs::is_own_index_write(path)
 }

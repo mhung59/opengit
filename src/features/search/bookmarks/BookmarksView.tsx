@@ -1,12 +1,13 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
-import clsx from "clsx";
 import { executeAction } from "@/platform/actions";
-import { dirname } from "@/platform/project";
-import { shortcutLabel } from "@/platform/keymap";
-import { confirm } from "@/workbench/messages";
 import { tx, useT, useTx } from "@/platform/i18n";
-import { EmptyState, Icon, IconButton, Tree, fileIconName, showContextMenu, type MenuItem } from "@/ui";
+import { shortcutLabel } from "@/platform/keymap";
+import { dirname } from "@/platform/project";
+import { EmptyState, Icon, Tree, fileIconName, showContextMenu, type MenuItem } from "@/ui";
+import { confirm } from "@/workbench/messages";
+import clsx from "clsx";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { basename, openLocation, relPath } from "../common/open";
+import styles from "./BookmarksView.module.css";
 import {
   bookmarkLabel,
   deleteList,
@@ -21,7 +22,6 @@ import {
   type BookmarkRef,
   type PathBookmark,
 } from "./store";
-import styles from "./BookmarksView.module.css";
 
 type Node =
   | { kind: "list"; key: string; list: BookmarkList; isDefault: boolean; count: number; children: Node[] }
@@ -341,22 +341,5 @@ export function BookmarksView() {
         }}
       />
     </div>
-  );
-}
-
-export function BookmarksActions() {
-  const count = useBookmarks((s) => s.items.length + s.paths.length);
-  return (
-    <>
-      <IconButton icon="plus" title="New Bookmark List…" size="small" onClick={() => newList()} />
-      {count > 0 && (
-        <IconButton
-          icon="trash"
-          title="Remove All Bookmarks"
-          size="small"
-          onClick={() => updateBookmarkData((d) => ({ ...d, items: [], paths: [] }))}
-        />
-      )}
-    </>
   );
 }
